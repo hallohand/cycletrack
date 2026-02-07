@@ -107,7 +107,6 @@ function updateDashboard() {
             <div class="welcome-card">
                 <h2>Willkommen bei CycleTrack</h2>
                 <p>Beginne damit, deine ersten Zyklusdaten einzugeben.</p>
-                <button class="btn" onclick="showAddEntry()">Ersten Eintrag erstellen</button>
             </div>
         `;
         return;
@@ -225,7 +224,6 @@ function updateDashboard() {
     }
     
     html += '</div>';
-    html += `<button class="btn" onclick="showAddEntry()" style="margin-top: 16px;">+ Tagesdaten eingeben</button>`;
     
     dashboard.innerHTML = html;
 }
