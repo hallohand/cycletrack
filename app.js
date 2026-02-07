@@ -123,22 +123,27 @@ function updateDashboard() {
     // Get period predictions using new function
     const periodPrediction = calculateNextPeriods(allEntries);
     
-    // Finde Eisprung (Temperaturanstieg)
+    // Finde Eisprung (Temperaturanstieg) - global für getFertilityStatus
     const ovulationInfo = findOvulation(allEntries);
     
-    // Berechne nächsten Eisprung
+    // Berechne nächsten Eisprung basierend auf individueller Lutealphase
     let nextOvulationDate = null;
     let daysToNextOvulation = null;
+    let ovulationConfidence = 'low';
     
     if (lastPeriod && periodPrediction.nextPeriod) {
-        // Eisprung ist typischerweise 14 Tage vor der nächsten Periode
+        // Verwende individuelle Lutealphase (nicht fix 14 Tage)
+        const lutealPhase = calculateIndividualLutealPhase();
         nextOvulationDate = new Date(periodPrediction.nextPeriod);
-        nextOvulationDate.setDate(nextOvulationDate.getDate() - 14);
+        nextOvulationDate.setDate(nextOvulationDate.getDate() - lutealPhase);
         daysToNextOvulation = Math.ceil((nextOvulationDate - today) / (1000 * 60 * 60 * 24));
+        
+        // Wenn wir historische Lutealphase-Daten haben, ist die Vorhersage besser
+        ovulationConfidence = currentData.lutealPhaseHistory && currentData.lutealPhaseHistory.length > 0 ? 'medium' : 'low';
     }
     
-    // Fruchtbarkeitsstatus
-    const fertilityStatus = getFertilityStatus(cycleDay, daysToNextOvulation);
+    // Fruchtbarkeitsstatus - nur anzeigen wenn wir genug Daten haben
+    const fertilityStatus = getFertilityStatus(cycleDay, daysToNextOvulation, ovulationConfidence, todayEntry, periodPrediction.nextPeriod, ovulationInfo);
     
     // Heutiger Eintrag
     const todayEntry = currentData.entries[todayStr];
@@ -309,7 +314,10 @@ function findOvulation(entries) {
     return { lastOvulation: null };
 }
 
-function getFertilityStatus(cycleDay, daysToOvulation) {
+function getFertilityStatus(cycleDay, daysToOvulation, confidence, todayEntry, nextPeriodDate, ovulationInfo) {
+    const today = new Date();
+    
+    // Periode hat Priorität
     if (cycleDay <= 5) {
         return { 
             class: 'period', 
@@ -318,22 +326,68 @@ function getFertilityStatus(cycleDay, daysToOvulation) {
             subtitle: 'Menstruationsphase' 
         };
     }
-    if (daysToOvulation >= -1 && daysToOvulation <= 1) {
+    
+    // Wenn wir einen LH-Test haben, der positiv ist -> Peak Fruchtbarkeit
+    if (todayEntry && todayEntry.lhTest === 'positive') {
         return { 
             class: 'ovulation', 
-            icon: '🥚', 
-            title: 'Eisprung', 
-            subtitle: 'Höchste Fruchtbarkeit' 
+            icon: '🔥', 
+            title: 'Peak-Fruchtbarkeit', 
+            subtitle: 'LH-Anstieg erkannt' 
         };
     }
-    if (daysToOvulation >= -5 && daysToOvulation <= 2) {
+    
+    // Wenn Eisprung durch Temperatur bestätigt wurde
+    if (ovulationInfo.lastOvulation) {
+        const daysSinceOvulation = Math.floor((today - new Date(ovulationInfo.lastOvulation.date)) / (1000 * 60 * 60 * 24));
+        if (daysSinceOvulation >= 0 && daysSinceOvulation <= 2) {
+            return { 
+                class: 'ovulation', 
+                icon: '🥚', 
+                title: 'Eisprung bestätigt', 
+                subtitle: 'Temperaturanstieg erkannt' 
+            };
+        }
+        if (daysSinceOvulation > 2) {
+            return { 
+                class: 'normal', 
+                icon: '😌', 
+                title: 'Nicht fruchtbar', 
+                subtitle: 'Nach Eisprung' 
+            };
+        }
+    }
+    
+    // Nur "fruchtbar" anzeigen wenn wir gute Daten haben
+    if (confidence === 'medium' || confidence === 'high') {
+        if (daysToOvulation >= -1 && daysToOvulation <= 1) {
+            return { 
+                class: 'ovulation', 
+                icon: '🥚', 
+                title: 'Eisprung wahrscheinlich', 
+                subtitle: 'Höchste Fruchtbarkeit' 
+            };
+        }
+        if (daysToOvulation >= -5 && daysToOvulation <= 2) {
+            return { 
+                class: 'fertile', 
+                icon: '🌱', 
+                title: 'Fruchtbar', 
+                subtitle: 'Fruchtbare Phase' 
+            };
+        }
+    }
+    
+    // Bei niedriger Konfidenz: eher unbekannt/unbestimmt anzeigen
+    if (confidence === 'low' || daysToOvulation === null) {
         return { 
-            class: 'fertile', 
-            icon: '🌱', 
-            title: 'Fruchtbar', 
-            subtitle: 'Fruchtbare Phase' 
+            class: 'unknown', 
+            icon: '❓', 
+            title: 'Unbekannt', 
+            subtitle: 'Nicht genug Daten' 
         };
     }
+    
     return { 
         class: 'normal', 
         icon: '😌', 
