@@ -823,7 +823,10 @@ function renderCalendar() {
             dayEl.classList.add('today');
         }
 
-        // Check if this day is within a predicted period window (5 days)
+        // Track what type of day this is (to prevent overlapping styles)
+        let dayType = null;
+        
+        // Check if this day is within a predicted period window (5 days) - PRIORITY 1
         if (periodPrediction.nextPeriod) {
             const nextPeriodStart = new Date(periodPrediction.nextPeriod);
             const nextPeriodEnd = new Date(nextPeriodStart);
@@ -832,10 +835,11 @@ function renderCalendar() {
             const currentDate = new Date(dateStr);
             if (currentDate >= nextPeriodStart && currentDate <= nextPeriodEnd) {
                 dayEl.classList.add('predicted-period');
+                dayType = 'period';
             }
         }
 
-        if (periodPrediction.nextPeriod2) {
+        if (!dayType && periodPrediction.nextPeriod2) {
             const nextPeriod2Start = new Date(periodPrediction.nextPeriod2);
             const nextPeriod2End = new Date(nextPeriod2Start);
             nextPeriod2End.setDate(nextPeriod2End.getDate() + 4); // 5 days total
@@ -843,11 +847,12 @@ function renderCalendar() {
             const currentDate = new Date(dateStr);
             if (currentDate >= nextPeriod2Start && currentDate <= nextPeriod2End) {
                 dayEl.classList.add('predicted-period-2');
+                dayType = 'period2';
             }
         }
 
-        // Check if this day is within a predicted fertile window (pastel blue)
-        if (periodPrediction.fertileWindow1) {
+        // Check if this day is within a predicted fertile window (pastel blue) - PRIORITY 2
+        if (!dayType && periodPrediction.fertileWindow1) {
             const fw1Start = new Date(periodPrediction.fertileWindow1.start);
             const fw1End = new Date(periodPrediction.fertileWindow1.end);
             const fw1Ovulation = new Date(periodPrediction.fertileWindow1.ovulation);
@@ -855,6 +860,7 @@ function renderCalendar() {
             
             if (currentDate >= fw1Start && currentDate <= fw1End) {
                 dayEl.classList.add('predicted-fertile');
+                dayType = 'fertile';
                 if (currentDate.getTime() === fw1Ovulation.getTime()) {
                     dayEl.classList.add('predicted-ovulation');
                     dayEl.innerHTML += `<div class="ov-label">🥚</div>`;
@@ -862,7 +868,7 @@ function renderCalendar() {
             }
         }
 
-        if (periodPrediction.fertileWindow2) {
+        if (!dayType && periodPrediction.fertileWindow2) {
             const fw2Start = new Date(periodPrediction.fertileWindow2.start);
             const fw2End = new Date(periodPrediction.fertileWindow2.end);
             const fw2Ovulation = new Date(periodPrediction.fertileWindow2.ovulation);
@@ -870,6 +876,7 @@ function renderCalendar() {
             
             if (currentDate >= fw2Start && currentDate <= fw2End) {
                 dayEl.classList.add('predicted-fertile-2');
+                dayType = 'fertile2';
                 if (currentDate.getTime() === fw2Ovulation.getTime()) {
                     dayEl.classList.add('predicted-ovulation');
                     dayEl.innerHTML += `<div class="ov-label">🥚</div>`;
