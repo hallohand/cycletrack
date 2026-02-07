@@ -379,7 +379,7 @@ function renderChart() {
     // Get last 30 days of data
     const days = [];
     const temps = [];
-    const coverline = [];
+    const coverlineValues = [];
     const periodDays = [];
     
     const today = new Date();
@@ -401,16 +401,54 @@ function renderChart() {
         }
     }
     
-    // Calculate coverline
-    const validTemps = temps.filter(t => t !== null);
-    if (validTemps.length >= 6) {
-        // Find the 6 highest temperatures before a sustained rise
-        const sorted = [...validTemps].sort((a, b) => b - a);
-        const coverlineValue = sorted[5]; // 6th highest
-        
-        for (let i = 0; i < temps.length; i++) {
-            coverline.push(coverlineValue);
+    // Calculate Coverline according to Fertility Awareness Method
+    // 1. Find temperature rise (3 consecutive days above a threshold)
+    // 2. Take the highest of the 6 temps before the rise
+    // 3. Draw coverline 0.1°C above that
+    
+    const validTempIndices = [];
+    const validTempValues = [];
+    
+    temps.forEach((temp, idx) => {
+        if (temp !== null) {
+            validTempIndices.push(idx);
+            validTempValues.push(temp);
         }
+    });
+    
+    let coverlineValue = null;
+    
+    if (validTempValues.length >= 9) { // Need at least 6 before + 3 after
+        // Find temperature rise (3 consecutive days that are higher)
+        let riseIndex = -1;
+        
+        for (let i = 6; i < validTempValues.length - 2; i++) {
+            const prev6 = validTempValues.slice(i - 6, i);
+            const next3 = validTempValues.slice(i, i + 3);
+            
+            const maxPrev6 = Math.max(...prev6);
+            const minNext3 = Math.min(...next3);
+            
+            // Rise is valid if next 3 are all higher than max of previous 6
+            if (minNext3 > maxPrev6) {
+                riseIndex = i;
+                break;
+            }
+        }
+        
+        if (riseIndex > 0) {
+            // Get 6 temperatures before the rise
+            const prev6Temps = validTempValues.slice(Math.max(0, riseIndex - 6), riseIndex);
+            const highestOf6 = Math.max(...prev6Temps);
+            
+            // Coverline is 0.1°C above the highest of the 6
+            coverlineValue = highestOf6 + 0.1;
+        }
+    }
+    
+    // Fill coverline array
+    for (let i = 0; i < temps.length; i++) {
+        coverlineValues.push(coverlineValue);
     }
     
     if (currentChart) {
@@ -435,7 +473,7 @@ function renderChart() {
                 },
                 {
                     label: 'Coverline',
-                    data: coverline,
+                    data: coverlineValues,
                     borderColor: '#4CAF50',
                     borderWidth: 2,
                     borderDash: [5, 5],
