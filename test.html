@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test</title>
+</head>
+<body>
+    <div id="output"></div>
+    <script>
+        try {
+            // Teste ob alle Views existieren
+            const views = ['homeView', 'addEntryView', 'chartView', 'settingsView'];
+            let output = [];
+            views.forEach(v => {
+                const el = document.getElementById(v);
+                output.push(v + ': ' + (el ? 'EXISTS' : 'MISSING'));
+            });
+            document.getElementById('output').innerHTML = output.join('<br>');
+        } catch(e) {
+            document.getElementById('output').innerHTML = 'ERROR: ' + e.message;
+        }
+    </script>
+</body>
+</html>
