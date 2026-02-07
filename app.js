@@ -772,6 +772,39 @@ function importFromText() {
     }
 }
 
+// Update Funktion
+let newWorker = null;
+
+function checkForUpdates() {
+    if (!('serviceWorker' in navigator)) return;
+    
+    navigator.serviceWorker.register('sw.js').then(reg => {
+        reg.addEventListener('updatefound', () => {
+            newWorker = reg.installing;
+            newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    // Neue Version verfügbar
+                    document.getElementById('updateNotification').style.display = 'flex';
+                }
+            });
+        });
+    });
+    
+    // Prüfe alle 60 Sekunden auf Updates
+    setInterval(() => {
+        navigator.serviceWorker.ready.then(reg => {
+            reg.update();
+        });
+    }, 60000);
+}
+
+function updateApp() {
+    if (newWorker) {
+        newWorker.postMessage('skipWaiting');
+        window.location.reload();
+    }
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     // Set today's date in header
@@ -785,11 +818,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     showHome();
     
-    // Register service worker
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js')
-            .catch(err => console.log('SW registration failed', err));
-    }
+    // Register service worker und prüfe auf Updates
+    checkForUpdates();
     
     // Date change listener
     document.getElementById('entryDate').addEventListener('change', (e) => {

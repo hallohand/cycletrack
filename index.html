@@ -442,6 +442,33 @@
         .mt-3 {
             margin-top: 12px;
         }
+
+        .update-banner {
+            background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
+            color: white;
+            padding: 12px 20px;
+            text-align: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1001;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .update-banner button {
+            background: white;
+            color: #4CAF50;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -451,6 +478,12 @@
     </div>
 
     <div class="saved-indicator" id="savedIndicator">Gespeichert</div>
+    
+    <!-- UPDATE NOTIFICATION -->
+    <div id="updateNotification" class="update-banner" style="display: none;">
+        <span>Neue Version verfügbar</span>
+        <button onclick="updateApp()">Jetzt aktualisieren</button>
+    </div>
 
     <!-- HOME VIEW -->
     <div id="homeView" class="container">
