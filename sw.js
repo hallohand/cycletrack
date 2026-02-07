@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cycletrack-v3'; // v1.1.1 - Critical fix for Settings button
+const CACHE_NAME = 'cycletrack-v4'; // v1.1.2 - Fix null check for ovulationInfo
 const urlsToCache = [
   '/cycletrack/',
   '/cycletrack/index.html',
