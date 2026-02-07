@@ -369,7 +369,7 @@ function getFertilityStatus(cycleDay, daysToOvulation, confidence, todayEntry, n
     }
     
     // Wenn Eisprung durch Temperatur bestätigt wurde
-    if (ovulationInfo.lastOvulation) {
+    if (ovulationInfo && ovulationInfo.lastOvulation) {
         const daysSinceOvulation = Math.floor((today - new Date(ovulationInfo.lastOvulation.date)) / (1000 * 60 * 60 * 24));
         if (daysSinceOvulation >= 0 && daysSinceOvulation <= 2) {
             return { 
