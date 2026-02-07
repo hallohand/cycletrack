@@ -456,13 +456,13 @@ function renderChart() {
     const lastPeriodStart = periodEntries[periodEntries.length - 1];
     const cycleStartDate = new Date(lastPeriodStart.date);
     
-    // Sammle alle Daten ab Zyklusbeginn (max 45 Tage)
+    // Sammle alle Daten ab Zyklusbeginn (max 32 Tage)
     const days = [];
     const temps = [];
     const pointColors = [];
     const pointSizes = [];
     
-    const maxDays = 45;
+    const maxDays = 32;
     for (let i = 0; i < maxDays; i++) {
         const date = new Date(cycleStartDate);
         date.setDate(date.getDate() + i);
@@ -495,8 +495,10 @@ function renderChart() {
     let coverlineValue = null;
     let ovulationDay = null;
     
-    // Nur Temps ohne Lücken betrachten
+    // Alle gültigen Temperaturen sammeln
     const tempData = temps.map((t, i) => ({ temp: t, day: i })).filter(d => d.temp !== null);
+    
+    console.log('Temperaturdaten:', tempData.length, 'Werte');
     
     if (tempData.length >= 9) { // Mindestens 6 vor + 3 nach
         for (let i = 6; i < tempData.length - 2; i++) {
@@ -506,17 +508,30 @@ function renderChart() {
             const maxPrev6 = Math.max(...prev6);
             const minNext3 = Math.min(...next3);
             
+            console.log(`Tag ${tempData[i].day}: maxPrev6=${maxPrev6.toFixed(2)}, minNext3=${minNext3.toFixed(2)}`);
+            
             // Prüfe: Sind alle 3 nächsten Tage höher als alle 6 vorherigen?
             if (minNext3 > maxPrev6) {
-                // Zusätzlich: 3. Tag muss mindestens 0,2°C höher sein
+                // Zusätzlich: 3. Tag muss mindestens 0,2°C höher sein als maxPrev6
                 if (next3[2] > maxPrev6 + 0.2) {
                     ovulationDay = tempData[i].day;
-                    // Coverline = höchste der 6 vorherigen + 0,1
                     coverlineValue = maxPrev6 + 0.1;
+                    console.log('Eisprung erkannt an Tag', ovulationDay, 'Coverline:', coverlineValue.toFixed(2));
                     break;
                 }
             }
         }
+    }
+    
+    // Fallback: Wenn keine Ovulation erkannt, aber genug Daten
+    // Zeige eine vorläufige Coverline basierend auf den 6 niedrigsten Temperaturen
+    if (coverlineValue === null && tempData.length >= 6) {
+        const allTemps = tempData.map(d => d.temp);
+        const sorted = [...allTemps].sort((a, b) => a - b);
+        const sixLowest = sorted.slice(0, 6);
+        const highestOfSix = Math.max(...sixLowest);
+        coverlineValue = highestOfSix + 0.1;
+        console.log('Fallback Coverline:', coverlineValue.toFixed(2));
     }
     
     // Erstelle Coverline-Array (nur ab Ovulation oder für alle Tage)
