@@ -430,6 +430,48 @@
             opacity: 1;
             transform: translateY(0);
         }
+
+        .import-textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            resize: vertical;
+        }
+
+        .file-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px dashed var(--border);
+            border-radius: 10px;
+            background: var(--background);
+        }
+
+        code {
+            font-family: 'Courier New', monospace;
+            background: var(--background);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        .import-result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 10px;
+            background: var(--background);
+        }
+
+        .import-result.success {
+            border-left: 4px solid var(--fertile);
+        }
+
+        .import-result.error {
+            border-left: 4px solid var(--period);
+        }
     </style>
 </head>
 <body>
@@ -665,6 +707,54 @@
         <button class="btn btn-secondary" onclick="showHome()">← Zurück</button>
     </div>
 
+    <!-- IMPORT/EXPORT VIEW -->
+    <div id="importExportView" class="container hidden">
+        <div class="card">
+            <div class="card-title">📥 Daten importieren</div>
+            <p style="margin-bottom: 15px; color: var(--text-light); font-size: 0.9rem;">
+                Importiere Daten aus Femometer oder anderen Apps im CSV-Format.
+            </p>
+            <div class="form-group">
+                <label>CSV-Datei auswählen:</label>
+                <input type="file" id="importFile" accept=".csv,.json" onchange="handleImport(event)">
+            </div>
+            <div class="form-group">
+                <label>Oder CSV-Text einfügen:</label>
+                <textarea id="importText" rows="6" placeholder="Datum,Temperatur,Periode,..." style="width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: 10px; font-family: monospace;"></textarea>
+            </div>
+            <button class="btn" onclick="importFromText()">📥 Importieren</button>
+        </div>
+
+        <div class="card">
+            <div class="card-title">📤 Daten exportieren / Backup</div>
+            <p style="margin-bottom: 15px; color: var(--text-light); font-size: 0.9rem;">
+                Erstelle ein Backup deiner Daten. Wichtig: Daten werden nur lokal gespeichert!
+            </p>
+            <button class="btn" onclick="ImportExport.exportToCSV()" style="margin-bottom: 10px;">
+                📄 Als CSV exportieren
+            </button>
+            <button class="btn btn-secondary" onclick="ImportExport.exportToJSON()">
+                💾 Als JSON Backup
+            </button>
+        </div>
+
+        <div class="card">
+            <div class="card-title">❓ Import-Hilfe</div>
+            <div style="font-size: 0.9rem; color: var(--text-light); line-height: 1.6;">
+                <p style="margin-bottom: 10px;"><strong>Spalten für CSV:</strong></p>
+                <code style="background: var(--background); padding: 10px; border-radius: 5px; display: block; overflow-x: auto;">
+                    Datum,Temperatur,Periode,Zervix,LH-Test,Sex,Stimmung,Symptome,Notizen
+                </code>
+                <p style="margin-top: 10px; margin-bottom: 5px;"><strong>Beispiel:</strong></p>
+                <code style="background: var(--background); padding: 10px; border-radius: 5px; display: block; overflow-x: auto; font-size: 0.8rem;">
+                    2026-01-15,36.45,light,eggwhite,positive,unprotected,happy,cramps;fatigue,Morgen
+                </code>
+            </div>
+        </div>
+
+        <button class="btn btn-secondary" onclick="showHome()">← Zurück</button>
+    </div>
+
     <!-- NAVIGATION -->
     <nav class="nav">
         <div class="nav-item active" onclick="showHome()">
@@ -679,8 +769,13 @@
             <span class="icon">📊</span>
             <span class="label">Kurve</span>
         </div>
+        <div class="nav-item" onclick="showImportExport()">
+            <span class="icon">📤</span>
+            <span class="label">Import</span>
+        </div>
     </nav>
 
+    <script src="import-export.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

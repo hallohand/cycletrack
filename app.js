@@ -73,17 +73,79 @@ function hideAllViews() {
     document.getElementById('homeView').classList.add('hidden');
     document.getElementById('addEntryView').classList.add('hidden');
     document.getElementById('chartView').classList.add('hidden');
+    document.getElementById('importExportView').classList.add('hidden');
+}
+
+function showImportExport() {
+    hideAllViews();
+    document.getElementById('importExportView').classList.remove('hidden');
+    updateNav('import');
 }
 
 function updateNav(view) {
     document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.remove('active');
     });
-    
+
     const navItems = document.querySelectorAll('.nav-item');
     if (view === 'home') navItems[0].classList.add('active');
     if (view === 'entry') navItems[1].classList.add('active');
     if (view === 'chart') navItems[2].classList.add('active');
+    if (view === 'import') navItems[3].classList.add('active');
+}
+
+// Import/Export Handler
+function handleImport(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const content = e.target.result;
+        document.getElementById('importText').value = content;
+        importFromText();
+    };
+
+    if (file.name.endsWith('.json')) {
+        reader.readAsText(file);
+    } else {
+        reader.readAsText(file);
+    }
+}
+
+function importFromText() {
+    const text = document.getElementById('importText').value.trim();
+    if (!text) {
+        alert('Bitte gib CSV-Daten ein oder wähle eine Datei aus');
+        return;
+    }
+
+    let result;
+    let importedCount = 0;
+    let errors = [];
+
+    try {
+        if (text.startsWith('{')) {
+            // JSON Import
+            importedCount = ImportExport.importFromJSON(text);
+            result = { success: importedCount, errors: [] };
+        } else {
+            // CSV Import
+            importedCount = ImportExport.importFromCSV(text);
+            result = { success: importedCount, errors: [] };
+        }
+
+        if (importedCount > 0) {
+            showSaved();
+            alert(`✅ ${importedCount} Einträge erfolgreich importiert!`);
+            document.getElementById('importText').value = '';
+        } else {
+            alert('⚠️ Keine Einträge importiert. Bitte prüfe das Format.');
+        }
+    } catch (e) {
+        alert('❌ Fehler beim Import: ' + e.message);
+        console.error(e);
+    }
 }
 
 // Entry Form Handling
