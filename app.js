@@ -287,6 +287,31 @@ function calculateNextPeriods(allEntries) {
     result.nextPeriod2 = nextPeriod2;
     result.daysToNext2 = Math.ceil((nextPeriod2 - today) / (1000 * 60 * 60 * 24));
 
+    // Calculate fertile windows (5 days before ovulation until ovulation day)
+    // Ovulation = period start - luteal phase
+    
+    // First fertile window
+    const ovulation1 = new Date(nextPeriod);
+    ovulation1.setDate(ovulation1.getDate() - lutealPhase);
+    const fertileWindow1Start = new Date(ovulation1);
+    fertileWindow1Start.setDate(fertileWindow1Start.getDate() - 5); // 5 days before
+    result.fertileWindow1 = {
+        start: fertileWindow1Start,
+        ovulation: ovulation1,
+        end: ovulation1 // ends on ovulation day
+    };
+    
+    // Second fertile window
+    const ovulation2 = new Date(nextPeriod2);
+    ovulation2.setDate(ovulation2.getDate() - lutealPhase);
+    const fertileWindow2Start = new Date(ovulation2);
+    fertileWindow2Start.setDate(fertileWindow2Start.getDate() - 5); // 5 days before
+    result.fertileWindow2 = {
+        start: fertileWindow2Start,
+        ovulation: ovulation2,
+        end: ovulation2
+    };
+
     return result;
 }
 
@@ -818,6 +843,37 @@ function renderCalendar() {
             const currentDate = new Date(dateStr);
             if (currentDate >= nextPeriod2Start && currentDate <= nextPeriod2End) {
                 dayEl.classList.add('predicted-period-2');
+            }
+        }
+
+        // Check if this day is within a predicted fertile window (pastel blue)
+        if (periodPrediction.fertileWindow1) {
+            const fw1Start = new Date(periodPrediction.fertileWindow1.start);
+            const fw1End = new Date(periodPrediction.fertileWindow1.end);
+            const fw1Ovulation = new Date(periodPrediction.fertileWindow1.ovulation);
+            const currentDate = new Date(dateStr);
+            
+            if (currentDate >= fw1Start && currentDate <= fw1End) {
+                dayEl.classList.add('predicted-fertile');
+                if (currentDate.getTime() === fw1Ovulation.getTime()) {
+                    dayEl.classList.add('predicted-ovulation');
+                    dayEl.innerHTML += `<div class="ov-label">🥚</div>`;
+                }
+            }
+        }
+
+        if (periodPrediction.fertileWindow2) {
+            const fw2Start = new Date(periodPrediction.fertileWindow2.start);
+            const fw2End = new Date(periodPrediction.fertileWindow2.end);
+            const fw2Ovulation = new Date(periodPrediction.fertileWindow2.ovulation);
+            const currentDate = new Date(dateStr);
+            
+            if (currentDate >= fw2Start && currentDate <= fw2End) {
+                dayEl.classList.add('predicted-fertile-2');
+                if (currentDate.getTime() === fw2Ovulation.getTime()) {
+                    dayEl.classList.add('predicted-ovulation');
+                    dayEl.innerHTML += `<div class="ov-label">🥚</div>`;
+                }
             }
         }
 
