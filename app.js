@@ -436,14 +436,172 @@ function saveEntry() {
     showHome();
 }
 
-// Chart Rendering
+// Chart Rendering - Zeigt aktuellen Zyklus ab Zyklustag 1
 function renderChart() {
     const ctx = document.getElementById('tempChart').getContext('2d');
     
+    // Finde den Beginn des aktuellen Zyklus (letzte Periode)
+    const allEntries = Object.values(currentData.entries).sort((a, b) => 
+        new Date(a.date) - new Date(b.date)
+    );
+    
+    const periodEntries = allEntries.filter(e => e.period);
+    if (periodEntries.length === 0) {
+        // Keine Perioden - zeige letzte 30 Tage
+        renderDefaultChart(ctx);
+        return;
+    }
+    
+    // Letzter Zyklusbeginn (erster Tag mit Periode)
+    const lastPeriodStart = periodEntries[periodEntries.length - 1];
+    const cycleStartDate = new Date(lastPeriodStart.date);
+    
+    // Sammle alle Daten ab Zyklusbeginn (max 45 Tage)
     const days = [];
     const temps = [];
-    const coverlineValues = [];
-    const periodDays = [];
+    const pointColors = [];
+    const pointSizes = [];
+    
+    const maxDays = 45;
+    for (let i = 0; i < maxDays; i++) {
+        const date = new Date(cycleStartDate);
+        date.setDate(date.getDate() + i);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        days.push(`ZT ${i + 1}`);
+        
+        const entry = currentData.entries[dateStr];
+        if (entry && entry.temperature) {
+            temps.push(entry.temperature);
+            // Markiere Periodentage
+            if (entry.period) {
+                pointColors.push('#C2185B'); // Dunkelrot für Periode
+                pointSizes.push(6);
+            } else {
+                pointColors.push('#E91E63');
+                pointSizes.push(4);
+            }
+        } else {
+            temps.push(null);
+            pointColors.push('#E91E63');
+            pointSizes.push(0);
+        }
+    }
+    
+    // Berechne Coverline nach NFP-Regeln
+    // 1. Finde Temperaturanstieg (3 aufeinanderfolgende Tage höher als vorherige 6)
+    // 2. Höchste der 6 Temps vor Anstieg + 0,1°C
+    
+    let coverlineValue = null;
+    let ovulationDay = null;
+    
+    // Nur Temps ohne Lücken betrachten
+    const tempData = temps.map((t, i) => ({ temp: t, day: i })).filter(d => d.temp !== null);
+    
+    if (tempData.length >= 9) { // Mindestens 6 vor + 3 nach
+        for (let i = 6; i < tempData.length - 2; i++) {
+            const prev6 = tempData.slice(i - 6, i).map(d => d.temp);
+            const next3 = tempData.slice(i, i + 3).map(d => d.temp);
+            
+            const maxPrev6 = Math.max(...prev6);
+            const minNext3 = Math.min(...next3);
+            
+            // Prüfe: Sind alle 3 nächsten Tage höher als alle 6 vorherigen?
+            if (minNext3 > maxPrev6) {
+                // Zusätzlich: 3. Tag muss mindestens 0,2°C höher sein
+                if (next3[2] > maxPrev6 + 0.2) {
+                    ovulationDay = tempData[i].day;
+                    // Coverline = höchste der 6 vorherigen + 0,1
+                    coverlineValue = maxPrev6 + 0.1;
+                    break;
+                }
+            }
+        }
+    }
+    
+    // Erstelle Coverline-Array (nur ab Ovulation oder für alle Tage)
+    const coverlineData = temps.map(() => coverlineValue);
+    
+    if (currentChart) {
+        currentChart.destroy();
+    }
+    
+    const datasets = [{
+        label: 'Temperatur',
+        data: temps,
+        borderColor: '#E91E63',
+        backgroundColor: 'rgba(233, 30, 99, 0.1)',
+        borderWidth: 2,
+        pointRadius: pointSizes,
+        pointBackgroundColor: pointColors,
+        pointBorderColor: pointColors,
+        tension: 0.3,
+        spanGaps: true
+    }];
+    
+    // Füge Coverline hinzu wenn berechnet
+    if (coverlineValue !== null) {
+        datasets.push({
+            label: 'Coverline',
+            data: coverlineData,
+            borderColor: '#4CAF50',
+            borderWidth: 2,
+            borderDash: [5, 5],
+            pointRadius: 0,
+            fill: false
+        });
+    }
+    
+    currentChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: days, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
+            plugins: {
+                legend: { 
+                    display: true,
+                    position: 'top',
+                    labels: { usePointStyle: true }
+                },
+                annotation: ovulationDay !== null ? {
+                    annotations: {
+                        ovulation: {
+                            type: 'line',
+                            xMin: ovulationDay,
+                            xMax: ovulationDay,
+                            borderColor: '#FF9800',
+                            borderWidth: 2,
+                            label: { content: 'Eisprung', enabled: true }
+                        }
+                    }
+                } : {}
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        maxTicksLimit: 10,
+                        font: { size: 10 }
+                    }
+                },
+                y: {
+                    min: 35.5,
+                    max: 37.5,
+                    title: { display: true, text: '°C' }
+                }
+            }
+        }
+    });
+}
+
+// Fallback wenn keine Periodendaten
+function renderDefaultChart(ctx) {
+    const days = [];
+    const temps = [];
     
     const today = new Date();
     for (let i = 29; i >= 0; i--) {
@@ -454,88 +612,32 @@ function renderChart() {
         days.push(date.getDate() + '.');
         
         const entry = currentData.entries[dateStr];
-        if (entry && entry.temperature) {
-            temps.push(entry.temperature);
-            if (entry.period) {
-                periodDays.push(temps.length - 1);
-            }
-        } else {
-            temps.push(null);
-        }
+        temps.push(entry && entry.temperature ? entry.temperature : null);
     }
     
-    // Calculate Coverline
-    const validTempIndices = [];
-    const validTempValues = [];
-    
-    temps.forEach((temp, idx) => {
-        if (temp !== null) {
-            validTempIndices.push(idx);
-            validTempValues.push(temp);
-        }
-    });
-    
-    let coverlineValue = null;
-    
-    if (validTempValues.length >= 6) {
-        // Simplified: Take highest of 6 lowest temps + 0.1
-        const sorted = [...validTempValues].sort((a, b) => a - b);
-        const sixLowest = sorted.slice(0, 6);
-        const highestOfSix = Math.max(...sixLowest);
-        coverlineValue = highestOfSix + 0.1;
-        
-        for (let i = 0; i < temps.length; i++) {
-            coverlineValues.push(coverlineValue);
-        }
-    }
-    
-    if (currentChart) {
-        currentChart.destroy();
-    }
+    if (currentChart) currentChart.destroy();
     
     currentChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: days,
-            datasets: [
-                {
-                    label: 'Temperatur',
-                    data: temps,
-                    borderColor: '#E91E63',
-                    backgroundColor: 'rgba(233, 30, 99, 0.1)',
-                    borderWidth: 2,
-                    pointRadius: 4,
-                    pointBackgroundColor: temps.map((t, i) => periodDays.includes(i) ? '#C2185B' : '#E91E63'),
-                    tension: 0.3,
-                    spanGaps: true
-                },
-                {
-                    label: 'Coverline',
-                    data: coverlineValue ? coverlineValues : [],
-                    borderColor: '#4CAF50',
-                    borderWidth: 2,
-                    borderDash: [5, 5],
-                    pointRadius: 0,
-                    fill: false
-                }
-            ]
+            datasets: [{
+                label: 'Temperatur',
+                data: temps,
+                borderColor: '#E91E63',
+                backgroundColor: 'rgba(233, 30, 99, 0.1)',
+                borderWidth: 2,
+                pointRadius: 4,
+                tension: 0.3,
+                spanGaps: true
+            }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            interaction: {
-                intersect: false,
-                mode: 'index'
-            },
-            plugins: {
-                legend: { display: false }
-            },
+            plugins: { legend: { display: false } },
             scales: {
-                y: {
-                    min: 35.5,
-                    max: 37.5,
-                    title: { display: true, text: '°C' }
-                }
+                y: { min: 35.5, max: 37.5, title: { display: true, text: '°C' } }
             }
         }
     });
