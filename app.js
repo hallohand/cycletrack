@@ -1,7 +1,7 @@
-// NancyCycle - Zyklus Tracker App
+// CycleTrack - Zyklus Tracker App
 
 // Data Storage
-const STORAGE_KEY = 'nancycycle_data';
+const STORAGE_KEY = 'cycletrack_data';
 
 // Initialize
 let currentData = loadData();

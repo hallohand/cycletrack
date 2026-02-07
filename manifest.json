@@ -1,7 +1,7 @@
 {
-  "name": "NancyCycle - Zyklus Tracker",
-  "short_name": "NancyCycle",
-  "description": "Persönlicher Zyklus-Tracker mit Temperaturkurve und Fruchtbarkeitsberechnung",
+  "name": "CycleTrack - Zyklus Tracker",
+  "short_name": "CycleTrack",
+  "description": "Privater Zyklus-Tracker mit Temperaturkurve und Fruchtbarkeitsberechnung",
   "start_url": "/nancycycle/",
   "display": "standalone",
   "background_color": "#FFF5F7",

@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#FF6B9D">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>NancyCycle - Zyklus Tracker</title>
+    <title>CycleTrack - Zyklus Tracker</title>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon-192.png">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -99,11 +99,6 @@
             background: white;
         }
         
-        .status-card .icon {
-            font-size: 1.5rem;
-            margin-bottom: 5px;
-        }
-        
         .status-card .label {
             font-size: 0.75rem;
             color: var(--text-light);
@@ -113,6 +108,7 @@
             font-size: 0.9rem;
             font-weight: 600;
             color: var(--primary-dark);
+            margin-top: 5px;
         }
         
         .btn {
@@ -159,20 +155,11 @@
             padding: 5px;
             cursor: pointer;
             transition: all 0.3s;
+            font-size: 0.75rem;
         }
         
         .nav-item.active {
             color: var(--primary);
-        }
-        
-        .nav-item .icon {
-            font-size: 1.5rem;
-            display: block;
-            margin-bottom: 2px;
-        }
-        
-        .nav-item .label {
-            font-size: 0.7rem;
         }
         
         .hidden {
@@ -206,36 +193,24 @@
             border-color: var(--primary);
         }
         
-        .mood-options {
-            display: flex;
+        .option-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
             gap: 10px;
-            flex-wrap: wrap;
         }
         
-        .mood-option {
-            flex: 1;
-            min-width: 60px;
-            text-align: center;
-            padding: 10px;
+        .option-item {
+            padding: 15px;
             border: 2px solid var(--border);
             border-radius: 10px;
+            text-align: center;
             cursor: pointer;
             transition: all 0.3s;
         }
         
-        .mood-option.selected {
+        .option-item.selected {
             border-color: var(--primary);
             background: var(--background);
-        }
-        
-        .mood-option .emoji {
-            font-size: 1.5rem;
-            display: block;
-        }
-        
-        .mood-option .text {
-            font-size: 0.75rem;
-            margin-top: 5px;
         }
         
         .calendar {
@@ -342,75 +317,6 @@
             background: var(--background);
         }
         
-        .cervix-options {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-        }
-        
-        .cervix-option {
-            padding: 15px;
-            border: 2px solid var(--border);
-            border-radius: 10px;
-            text-align: center;
-            cursor: pointer;
-        }
-        
-        .cervix-option.selected {
-            border-color: var(--primary);
-            background: var(--background);
-        }
-        
-        .lh-test {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-        }
-        
-        .lh-option {
-            width: 60px;
-            height: 60px;
-            border: 2px solid var(--border);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            cursor: pointer;
-        }
-        
-        .lh-option.selected {
-            border-color: var(--primary);
-            background: var(--background);
-        }
-
-        .sex-options {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-        }
-
-        .sex-option {
-            flex: 1;
-            max-width: 120px;
-            padding: 15px;
-            border: 2px solid var(--border);
-            border-radius: 12px;
-            text-align: center;
-            cursor: pointer;
-        }
-
-        .sex-option.selected {
-            border-color: var(--primary);
-            background: var(--background);
-        }
-
-        .sex-option .emoji {
-            font-size: 2rem;
-            display: block;
-            margin-bottom: 5px;
-        }
-
         .saved-indicator {
             position: fixed;
             top: 20px;
@@ -425,7 +331,7 @@
             transition: all 0.3s;
             z-index: 1000;
         }
-
+        
         .saved-indicator.show {
             opacity: 1;
             transform: translateY(0);
@@ -440,14 +346,6 @@
             font-family: monospace;
             font-size: 0.85rem;
             resize: vertical;
-        }
-
-        .file-input {
-            width: 100%;
-            padding: 10px;
-            border: 2px dashed var(--border);
-            border-radius: 10px;
-            background: var(--background);
         }
 
         code {
@@ -476,27 +374,24 @@
 </head>
 <body>
     <div class="header">
-        <h1>🌸 NancyCycle</h1>
-        <div class="subtitle">Dein persönlicher Zyklus-Tracker</div>
+        <h1>CycleTrack</h1>
+        <div class="subtitle">Privater Zyklus-Tracker</div>
     </div>
 
-    <div class="saved-indicator" id="savedIndicator">✓ Gespeichert</div>
+    <div class="saved-indicator" id="savedIndicator">Gespeichert</div>
 
     <!-- HOME VIEW -->
     <div id="homeView" class="container">
         <div class="status-cards">
             <div class="status-card" id="cycleDayCard">
-                <div class="icon">📅</div>
                 <div class="label">Zyklustag</div>
                 <div class="value" id="cycleDay">-</div>
             </div>
             <div class="status-card" id="fertilityCard">
-                <div class="icon">🌱</div>
                 <div class="label">Fruchtbarkeit</div>
                 <div class="value" id="fertilityStatus">-</div>
             </div>
             <div class="status-card">
-                <div class="icon">⏰</div>
                 <div class="label">Nächste Periode</div>
                 <div class="value" id="nextPeriod">-</div>
             </div>
@@ -504,33 +399,33 @@
 
         <div class="card">
             <div class="card-title">Heute</div>
-            <button class="btn" onclick="showAddEntry()">📊 Tagesdaten eingeben</button>
+            <button class="btn" onclick="showAddEntry()">Tagesdaten eingeben</button>
         </div>
 
         <div class="card">
             <div class="card-title">Übersicht</div>
-            <button class="btn btn-secondary" onclick="showChart()">📈 Temperaturkurve</button>
+            <button class="btn btn-secondary" onclick="showChart()">Temperaturkurve</button>
         </div>
     </div>
 
     <!-- ADD ENTRY VIEW -->
     <div id="addEntryView" class="container hidden">
         <div class="card">
-            <div class="card-title">📅 Datum</div>
+            <div class="card-title">Datum</div>
             <div class="form-group">
                 <input type="date" id="entryDate" value="">
             </div>
         </div>
 
         <div class="card">
-            <div class="card-title">🌡️ Basaltemperatur (BBT)</div>
+            <div class="card-title">Basaltemperatur (BBT)</div>
             <div class="form-group">
                 <input type="number" id="temperature" step="0.01" placeholder="z.B. 36.50" min="35" max="40">
             </div>
         </div>
 
         <div class="card">
-            <div class="card-title">🩸 Periode</div>
+            <div class="card-title">Periode</div>
             <div class="form-group">
                 <select id="periodFlow">
                     <option value="">Keine Periode</option>
@@ -543,116 +438,99 @@
         </div>
 
         <div class="card">
-            <div class="card-title">💧 Zervixschleim</div>
-            <div class="cervix-options">
-                <div class="cervix-option" data-value="dry" onclick="selectCervix(this)">
-                    <div>🏜️</div>
+            <div class="card-title">Zervixschleim</div>
+            <div class="option-grid">
+                <div class="option-item" data-value="dry" onclick="selectCervix(this)">
                     <div>Trocken</div>
                 </div>
-                <div class="cervix-option" data-value="sticky" onclick="selectCervix(this)">
-                    <div>🍯</div>
+                <div class="option-item" data-value="sticky" onclick="selectCervix(this)">
                     <div>Klebrig</div>
                 </div>
-                <div class="cervix-option" data-value="creamy" onclick="selectCervix(this)">
-                    <div>🥛</div>
+                <div class="option-item" data-value="creamy" onclick="selectCervix(this)">
                     <div>Cremig</div>
                 </div>
-                <div class="cervix-option" data-value="watery" onclick="selectCervix(this)">
-                    <div>💧</div>
+                <div class="option-item" data-value="watery" onclick="selectCervix(this)">
                     <div>Wässrig</div>
                 </div>
-                <div class="cervix-option" data-value="eggwhite" onclick="selectCervix(this)">
-                    <div>🥚</div>
+                <div class="option-item" data-value="eggwhite" onclick="selectCervix(this)">
                     <div>Eiweißartig</div>
                 </div>
             </div>
         </div>
 
         <div class="card">
-            <div class="card-title">🧪 LH-Test</div>
-            <div class="lh-test">
-                <div class="lh-option" data-value="negative" onclick="selectLH(this)">➖</div>
-                <div class="lh-option" data-value="positive" onclick="selectLH(this)">➕</div>
+            <div class="card-title">LH-Test</div>
+            <div class="option-grid">
+                <div class="option-item" data-value="negative" onclick="selectLH(this)">
+                    <div>Negativ</div>
+                </div>
+                <div class="option-item" data-value="positive" onclick="selectLH(this)">
+                    <div>Positiv</div>
+                </div>
             </div>
         </div>
 
         <div class="card">
-            <div class="card-title">💕 Geschlechtsverkehr</div>
-            <div class="sex-options">
-                <div class="sex-option" data-value="unprotected" onclick="selectSex(this)">
-                    <span class="emoji">💏</span>
+            <div class="card-title">Geschlechtsverkehr</div>
+            <div class="option-grid">
+                <div class="option-item" data-value="unprotected" onclick="selectSex(this)">
                     <div>Ungeschützt</div>
                 </div>
-                <div class="sex-option" data-value="protected" onclick="selectSex(this)">
-                    <span class="emoji">🛡️</span>
+                <div class="option-item" data-value="protected" onclick="selectSex(this)">
                     <div>Geschützt</div>
                 </div>
             </div>
         </div>
 
         <div class="card">
-            <div class="card-title">😊 Stimmung</div>
-            <div class="mood-options">
-                <div class="mood-option" data-value="happy" onclick="selectMood(this)">
-                    <span class="emoji">😊</span>
-                    <span class="text">Glücklich</span>
+            <div class="card-title">Stimmung</div>
+            <div class="option-grid">
+                <div class="option-item" data-value="happy" onclick="selectMood(this)">
+                    <div>Glücklich</div>
                 </div>
-                <div class="mood-option" data-value="neutral" onclick="selectMood(this)">
-                    <span class="emoji">😐</span>
-                    <span class="text">Neutral</span>
+                <div class="option-item" data-value="neutral" onclick="selectMood(this)">
+                    <div>Neutral</div>
                 </div>
-                <div class="mood-option" data-value="sad" onclick="selectMood(this)">
-                    <span class="emoji">😢</span>
-                    <span class="text">Traurig</span>
+                <div class="option-item" data-value="sad" onclick="selectMood(this)">
+                    <div>Traurig</div>
                 </div>
-                <div class="mood-option" data-value="irritable" onclick="selectMood(this)">
-                    <span class="emoji">😤</span>
-                    <span class="text">Gereizt</span>
+                <div class="option-item" data-value="irritable" onclick="selectMood(this)">
+                    <div>Gereizt</div>
                 </div>
-                <div class="mood-option" data-value="anxious" onclick="selectMood(this)">
-                    <span class="emoji">😰</span>
-                    <span class="text">Ängstlich</span>
+                <div class="option-item" data-value="anxious" onclick="selectMood(this)">
+                    <div>Ängstlich</div>
                 </div>
-                <div class="mood-option" data-value="energetic" onclick="selectMood(this)">
-                    <span class="emoji">⚡</span>
-                    <span class="text">Energiegeladen</span>
+                <div class="option-item" data-value="energetic" onclick="selectMood(this)">
+                    <div>Energiegeladen</div>
                 </div>
             </div>
         </div>
 
         <div class="card">
-            <div class="card-title">🩺 Symptome</div>
+            <div class="card-title">Symptome</div>
             <div class="symptoms-grid">
                 <div class="symptom-item" data-value="cramps" onclick="toggleSymptom(this)">
-                    <span>🔴</span>
                     <span>Krämpfe</span>
                 </div>
                 <div class="symptom-item" data-value="bloating" onclick="toggleSymptom(this)">
-                    <span>🎈</span>
                     <span>Blähungen</span>
                 </div>
                 <div class="symptom-item" data-value="headache" onclick="toggleSymptom(this)">
-                    <span>🤕</span>
                     <span>Kopfschmerzen</span>
                 </div>
                 <div class="symptom-item" data-value="backache" onclick="toggleSymptom(this)">
-                    <span>💪</span>
                     <span>Rückenschmerzen</span>
                 </div>
                 <div class="symptom-item" data-value="tender" onclick="toggleSymptom(this)">
-                    <span>👙</span>
                     <span>Brustspannen</span>
                 </div>
                 <div class="symptom-item" data-value="fatigue" onclick="toggleSymptom(this)">
-                    <span>😴</span>
                     <span>Müdigkeit</span>
                 </div>
                 <div class="symptom-item" data-value="acne" onclick="toggleSymptom(this)">
-                    <span>🔴</span>
                     <span>Hautunreinheiten</span>
                 </div>
                 <div class="symptom-item" data-value="nausea" onclick="toggleSymptom(this)">
-                    <span>🤢</span>
                     <span>Übelkeit</span>
                 </div>
             </div>
@@ -660,19 +538,19 @@
 
         <div class="card">
             <div class="form-group">
-                <label>📝 Notizen</label>
+                <label>Notizen</label>
                 <input type="text" id="notes" placeholder="Zusätzliche Notizen...">
             </div>
         </div>
 
-        <button class="btn" onclick="saveEntry()">💾 Speichern</button>
-        <button class="btn btn-secondary" onclick="showHome()" style="margin-top: 10px;">❌ Abbrechen</button>
+        <button class="btn" onclick="saveEntry()">Speichern</button>
+        <button class="btn btn-secondary" onclick="showHome()" style="margin-top: 10px;">Abbrechen</button>
     </div>
 
     <!-- CHART VIEW -->
     <div id="chartView" class="container hidden">
         <div class="card">
-            <div class="card-title">📈 Temperaturkurve</div>
+            <div class="card-title">Temperaturkurve</div>
             <div class="chart-container">
                 <canvas id="tempChart"></canvas>
             </div>
@@ -693,26 +571,26 @@
         </div>
 
         <div class="card">
-            <div class="card-title">📅 Zyklus-Kalender</div>
+            <div class="card-title">Zyklus-Kalender</div>
             <div style="text-align: center; margin-bottom: 15px;">
-                <button onclick="changeMonth(-1)" style="background: none; border: none; font-size: 1.2rem; cursor: pointer;">◀</button>
+                <button onclick="changeMonth(-1)" style="background: none; border: none; font-size: 1.2rem; cursor: pointer;">&lt;</button>
                 <span id="currentMonth" style="margin: 0 20px; font-weight: 600;"></span>
-                <button onclick="changeMonth(1)" style="background: none; border: none; font-size: 1.2rem; cursor: pointer;">▶</button>
+                <button onclick="changeMonth(1)" style="background: none; border: none; font-size: 1.2rem; cursor: pointer;">&gt;</button>
             </div>
             <div class="calendar" id="calendar">
                 <!-- Calendar will be generated -->
             </div>
         </div>
 
-        <button class="btn btn-secondary" onclick="showHome()">← Zurück</button>
+        <button class="btn btn-secondary" onclick="showHome()">Zurück</button>
     </div>
 
     <!-- IMPORT/EXPORT VIEW -->
     <div id="importExportView" class="container hidden">
         <div class="card">
-            <div class="card-title">📥 Daten importieren</div>
+            <div class="card-title">Daten importieren</div>
             <p style="margin-bottom: 15px; color: var(--text-light); font-size: 0.9rem;">
-                Importiere Daten aus <strong>Femometer</strong> oder anderen Apps. Die App erkennt automatisch das Format!
+                Importiere Daten aus Femometer oder anderen Apps. Die App erkennt automatisch das Format.
             </p>
             <div class="form-group">
                 <label>CSV-Datei auswählen:</label>
@@ -720,65 +598,61 @@
             </div>
             <div class="form-group">
                 <label>Oder CSV-Text direkt einfügen:</label>
-                <textarea id="importText" rows="8" placeholder="Kopiere hier deine Femometer-Daten rein...&#10;Datum,Zyklustag,Periodentag,Farbe,..." style="width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: 10px; font-family: monospace; font-size: 0.85rem;"></textarea>
+                <textarea id="importText" rows="8" placeholder="Kopiere hier deine Daten rein..." style="width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: 10px; font-family: monospace; font-size: 0.85rem;"></textarea>
             </div>
-            <button class="btn" onclick="importFromText()">📥 Jetzt importieren</button>
+            <button class="btn" onclick="importFromText()">Jetzt importieren</button>
             <div id="importResult" style="margin-top: 15px; display: none;"></div>
         </div>
 
         <div class="card">
-            <div class="card-title">📤 Daten exportieren / Backup</div>
+            <div class="card-title">Daten exportieren / Backup</div>
             <p style="margin-bottom: 15px; color: var(--text-light); font-size: 0.9rem;">
-                Erstelle ein Backup deiner Daten. Wichtig: Alle Daten bleiben nur auf diesem Gerät!
+                Erstelle ein Backup deiner Daten. Alle Daten bleiben nur auf diesem Gerät.
             </p>
             <button class="btn" onclick="ImportExport.exportToCSV()" style="margin-bottom: 10px;">
-                📄 Als CSV exportieren
+                Als CSV exportieren
             </button>
             <button class="btn btn-secondary" onclick="ImportExport.exportToJSON()">
-                💾 Komplettes JSON Backup
+                Komplettes JSON Backup
             </button>
         </div>
 
         <div class="card">
-            <div class="card-title">✅ Femometer-Import Anleitung</div>
+            <div class="card-title">Femometer-Import Anleitung</div>
             <div style="font-size: 0.9rem; color: var(--text-light); line-height: 1.6;">
                 <p style="margin-bottom: 10px;"><strong>Unterstützte Formate:</strong></p>
                 <ul style="margin-left: 20px; margin-bottom: 15px;">
-                    <li>✅ Femometer CSV Export (mit allen Spalten)</li>
-                    <li>✅ NancyCycle Standard-Format</li>
-                    <li>✅ JSON Backup-Dateien</li>
+                    <li>Femometer CSV Export (mit allen Spalten)</li>
+                    <li>CycleTrack Standard-Format</li>
+                    <li>JSON Backup-Dateien</li>
                 </ul>
                 <p style="margin-bottom: 10px;"><strong>Automatische Konvertierung:</strong></p>
                 <ul style="margin-left: 20px;">
-                    <li>Datum: DD.MM.YYYY → YYYY-MM-DD</li>
-                    <li>Temperatur: 36.86°C → 36.86</li>
-                    <li>Periode: Flussmenge → light/medium/heavy</li>
-                    <li>Zervix: Deutscher Text → Codes</li>
-                    <li>Symptome: Deutsche Namen → interne Keys</li>
+                    <li>Datum: DD.MM.YYYY zu YYYY-MM-DD</li>
+                    <li>Temperatur: 36.86°C zu 36.86</li>
+                    <li>Periode: Flussmenge zu light/medium/heavy</li>
+                    <li>Zervix: Deutscher Text zu Codes</li>
+                    <li>Symptome: Deutsche Namen zu internen Keys</li>
                 </ul>
             </div>
         </div>
 
-        <button class="btn btn-secondary" onclick="showHome()">← Zurück</button>
+        <button class="btn btn-secondary" onclick="showHome()">Zurück</button>
     </div>
 
     <!-- NAVIGATION -->
     <nav class="nav">
         <div class="nav-item active" onclick="showHome()">
-            <span class="icon">🏠</span>
-            <span class="label">Start</span>
+            <div>Start</div>
         </div>
         <div class="nav-item" onclick="showAddEntry()">
-            <span class="icon">➕</span>
-            <span class="label">Eintrag</span>
+            <div>Eintrag</div>
         </div>
         <div class="nav-item" onclick="showChart()">
-            <span class="icon">📊</span>
-            <span class="label">Kurve</span>
+            <div>Kurve</div>
         </div>
         <div class="nav-item" onclick="showImportExport()">
-            <span class="icon">📤</span>
-            <span class="label">Import</span>
+            <div>Import</div>
         </div>
     </nav>
 
