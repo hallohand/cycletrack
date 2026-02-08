@@ -1,12 +1,17 @@
 'use client';
 import { useCycleData } from '@/hooks/useCycleData';
 import { useState } from 'react';
-import { Trash2, Download, Upload } from 'lucide-react';
+import { Trash2, Download, Upload, Save } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
 
 export default function SettingsPage() {
     const { data, importData, updateSettings } = useCycleData();
     const [importText, setImportText] = useState('');
-    const [message, setMessage] = useState('');
 
     const handleExportJSON = () => {
         const json = JSON.stringify(data, null, 2);
@@ -17,71 +22,73 @@ export default function SettingsPage() {
         a.download = `cycletrack-backup-${new Date().toISOString().split('T')[0]}.json`;
         a.click();
         URL.revokeObjectURL(url);
+        toast.success("Backup heruntergeladen");
     };
 
     const handleImport = () => {
         if (!importText) return;
-        const count = importData(importText);
-        setMessage(`${count} Einträge erfolgreich importiert.`);
-        setImportText('');
+        try {
+            const count = importData(importText);
+            toast.success(`${count} Einträge erfolgreich importiert.`);
+            setImportText('');
+        } catch (e) {
+            toast.error("Fehler beim Importieren. Überprüfe das Format.");
+        }
     };
 
     return (
-        <div className="space-y-6">
-            <div className="bg-white p-6 rounded-2xl shadow-sm text-center">
-                <div className="text-4xl mb-2">⚙️</div>
-                <h2 className="text-xl font-bold text-gray-800">Einstellungen</h2>
-                <p className="text-gray-500 text-sm">Version 2.0 (Next.js)</p>
+        <div className="space-y-6 pb-20">
+            <div className="text-center py-4">
+                <h2 className="text-2xl font-bold tracking-tight">Einstellungen</h2>
+                <p className="text-muted-foreground text-sm">Verwalte deine Daten & Präferenzen</p>
             </div>
 
-            <div className="bg-white p-6 rounded-2xl shadow-sm">
-                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Download className="w-5 h-5 text-gray-500" />
-                    Backup & Export
-                </h3>
-                <button
-                    onClick={handleExportJSON}
-                    className="w-full py-3 border-2 border-pink-500 text-pink-600 rounded-xl font-medium hover:bg-pink-50 transition-colors"
-                >
-                    Backup herunterladen (JSON)
-                </button>
-            </div>
-
-            <div className="bg-white p-6 rounded-2xl shadow-sm">
-                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Upload className="w-5 h-5 text-gray-500" />
-                    Import
-                </h3>
-                <p className="text-sm text-gray-500 mb-3">Füge hier den Inhalt einer JSON-Backup-Datei ein.</p>
-                <textarea
-                    value={importText}
-                    onChange={(e) => setImportText(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-xl mb-3 text-xs font-mono"
-                    rows={5}
-                    placeholder='{"entries": {...}}'
-                />
-                <button
-                    onClick={handleImport}
-                    className="w-full py-3 bg-gray-800 text-white rounded-xl font-medium hover:bg-gray-700 transition-colors"
-                >
-                    Importieren
-                </button>
-                {message && <div className="mt-3 text-green-600 text-sm font-medium bg-green-50 p-2 rounded-lg text-center">{message}</div>}
-            </div>
-
-            <div className="bg-white p-6 rounded-2xl shadow-sm">
-                <h3 className="font-bold text-gray-800 mb-4">Zyklus-Einstellungen</h3>
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Lutealphase (Tage)</label>
-                        <input
+            <Card className="border-none shadow-sm">
+                <CardHeader>
+                    <CardTitle className="text-lg">Zyklus-Parameter</CardTitle>
+                    <CardDescription>Passe die Berechnungen an deinen Körper an.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                        <Label>Lutealphase (Tage)</Label>
+                        <Input
                             type="number"
                             value={data.lutealPhase || 14}
                             onChange={(e) => updateSettings({ lutealPhase: parseInt(e.target.value) || 14 })}
-                            className="w-full p-3 border border-gray-300 rounded-xl"
                         />
+                        <p className="text-xs text-muted-foreground">Standard ist 14 Tage. Ändere dies nur, wenn du deine genaue Lutealphase kennst.</p>
                     </div>
-                </div>
+                </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-sm">
+                <CardHeader>
+                    <CardTitle className="text-lg">Daten-Verwaltung</CardTitle>
+                    <CardDescription>Deine Daten gehören dir. Exportiere oder importiere sie jederzeit.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <Button variant="outline" className="w-full justify-start gap-2" onClick={handleExportJSON}>
+                        <Download className="w-4 h-4" /> Backup herunterladen (JSON)
+                    </Button>
+
+                    <div className="pt-4 border-t">
+                        <Label className="mb-2 block">Import</Label>
+                        <Textarea
+                            value={importText}
+                            onChange={(e) => setImportText(e.target.value)}
+                            className="mb-2 font-mono text-xs"
+                            placeholder='Füge hier den Inhalt deiner Backup-Datei ein...'
+                            rows={4}
+                        />
+                        <Button className="w-full gap-2" onClick={handleImport} disabled={!importText}>
+                            <Upload className="w-4 h-4" /> Daten importieren
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <div className="text-center text-xs text-muted-foreground pt-8">
+                CycleTrack v2.1 • Privacy First
             </div>
         </div>
     );
