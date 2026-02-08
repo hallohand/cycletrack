@@ -104,7 +104,7 @@ export default function ChartPage() {
                             <Tooltip
                                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                                 labelStyle={{ color: 'var(--muted-foreground)' }}
-                                formatter={(value: any, name: string, props: any) => {
+                                formatter={(value: any, name: any, props: any) => {
                                     if (name === 'temp') return [`${value}°C`, 'Temp'];
                                     return [value, name];
                                 }}
