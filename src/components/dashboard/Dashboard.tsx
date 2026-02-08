@@ -1,6 +1,6 @@
 'use client';
 import { useCycleData } from '@/hooks/useCycleData';
-import { runEngine, formatDays } from '@/lib/cycle-calculations';
+import { runEngine } from '@/lib/cycle-calculations';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
