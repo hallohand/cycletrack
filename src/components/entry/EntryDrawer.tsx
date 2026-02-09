@@ -19,10 +19,11 @@ import { useState, useEffect } from "react"
 import { useCycleData } from "@/hooks/useCycleData"
 import { toast } from "sonner"
 import { CycleEntry, SexType, CervixType, LHTestResult } from "@/lib/types"
+import { toLocalISO } from "@/lib/utils"
 
 export function EntryDrawer({ children }: { children: React.ReactNode }) {
     const { data, updateEntry, isLoaded } = useCycleData();
-    const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState<string>(toLocalISO());
     const [entry, setEntry] = useState<Partial<CycleEntry>>({});
     const [open, setOpen] = useState(false);
 

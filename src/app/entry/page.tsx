@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useCycleData } from '@/hooks/useCycleData';
 import { CycleEntry, CervixType, LHTestResult, SexType, MoodType } from '@/lib/types';
 import { useRouter } from 'next/navigation';
+import { toLocalISO } from '@/lib/utils';
 
 export default function EntryPage() {
     const router = useRouter();
@@ -12,7 +13,7 @@ export default function EntryPage() {
 
     useEffect(() => {
         // Default to today
-        const today = new Date().toISOString().split('T')[0];
+        const today = toLocalISO();
         setDate(today);
     }, []);
 
@@ -81,8 +82,8 @@ export default function EntryPage() {
                             key={opt.val}
                             onClick={() => handleOptionSelect('period', opt.val)}
                             className={`p-3 rounded-xl border text-sm font-medium transition-colors ${entry.period === opt.val
-                                    ? 'bg-pink-100 border-pink-500 text-pink-700'
-                                    : 'border-gray-200 hover:border-pink-300'
+                                ? 'bg-pink-100 border-pink-500 text-pink-700'
+                                : 'border-gray-200 hover:border-pink-300'
                                 }`}
                         >
                             {opt.label}
@@ -105,8 +106,8 @@ export default function EntryPage() {
                             key={opt.val}
                             onClick={() => handleOptionSelect('cervix', opt.val)}
                             className={`p-3 rounded-xl border text-sm font-medium transition-colors ${entry.cervix === opt.val
-                                    ? 'bg-blue-100 border-blue-500 text-blue-700'
-                                    : 'border-gray-200 hover:border-blue-300'
+                                ? 'bg-blue-100 border-blue-500 text-blue-700'
+                                : 'border-gray-200 hover:border-blue-300'
                                 }`}
                         >
                             {opt.label}

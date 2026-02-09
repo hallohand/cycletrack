@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Plus, Calendar as CalendarIcon, Activity, Droplets, Thermometer, ChevronRight, AlertCircle, CheckCircle2, Leaf, Siren } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -21,8 +21,8 @@ export default function Dashboard() {
 
     if (!isLoaded || !today) return <div className="p-8 text-center text-muted-foreground animate-pulse">Lade CycleTrack Engine...</div>;
 
-    // Use the new Engine directly
-    const engine = runEngine(data);
+    // Use the new Engine directly (memoized to avoid expensive recalc)
+    const engine = useMemo(() => runEngine(data), [data]);
     const current = engine.currentCycle;
     const prediction = engine.predictions.today;
     const stats = engine.statistics;

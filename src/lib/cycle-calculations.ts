@@ -1,4 +1,5 @@
 import { CycleData, CycleEntry, CycleStatistics, EngineResult, CycleState, FutureCycle, DailyPrediction } from './types';
+import { toLocalISO } from './utils';
 
 // --- Helpers ---
 const MILLIS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -36,7 +37,10 @@ function analyzeHistory(entries: Record<string, CycleEntry>): { stats: CycleStat
     for (let i = 0; i < sortedEntries.length; i++) {
         const e = sortedEntries[i];
         const prev = i > 0 ? sortedEntries[i - 1] : null;
-        const isStart = e.period && (!prev?.period || diffDays(e.date, prev.date) > 8);
+        // Spotting should NOT start a new cycle
+        const isPeriodFlow = e.period && e.period !== 'spotting';
+        const prevIsPeriodFlow = prev?.period && prev.period !== 'spotting';
+        const isStart = isPeriodFlow && (!prevIsPeriodFlow || diffDays(e.date, prev!.date) > 8);
         if (isStart) starts.push(e.date);
     }
 
@@ -64,11 +68,45 @@ function analyzeHistory(entries: Record<string, CycleEntry>): { stats: CycleStat
     const avg = lengths.reduce((a, b) => a + b, 0) / lengths.length;
     const sd = stdDev(lengths, avg);
 
+    // Calculate actual luteal phase from confirmed ovulations
+    const lutealLengths: number[] = [];
+    for (let i = 0; i < starts.length - 1; i++) {
+        const cycleStart = starts[i];
+        const nextStart = starts[i + 1];
+        const cycleLen = diffDays(nextStart, cycleStart);
+        if (cycleLen < 20 || cycleLen > 45) continue;
+
+        // Find confirmed ovulation in this cycle via BBT shift
+        const cycleEntries = Object.values(entries)
+            .filter(e => e.date >= cycleStart && e.date < nextStart)
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        const validTemps = cycleEntries.filter(e => e.temperature && !e.excludeTemp);
+
+        for (let j = 6; j < validTemps.length - 2; j++) {
+            const prev6 = validTemps.slice(j - 6, j);
+            const next3 = validTemps.slice(j, j + 3);
+            if (prev6.length < 6) continue;
+            const baseline = Math.max(...prev6.map(e => e.temperature!));
+            const threshold = baseline + 0.2;
+            const isShift = next3.every(e => e.temperature! >= baseline + 0.05) && next3[2].temperature! >= threshold;
+            if (isShift) {
+                const ovuDate = addDays(validTemps[j].date, -1);
+                const luteal = diffDays(nextStart, ovuDate);
+                if (luteal >= 8 && luteal <= 20) lutealLengths.push(luteal);
+                break;
+            }
+        }
+    }
+
+    const lutealAvg = lutealLengths.length >= 2
+        ? lutealLengths.reduce((a, b) => a + b, 0) / lutealLengths.length
+        : 14;
+    const lutealMed = lutealLengths.length >= 2 ? median(lutealLengths) : 14;
+
     return {
         stats: {
             avgCycleLength: avg, medianCycleLength: med, stdDevCycleLength: sd,
-            // Luteal is placeholder until we define retrospective ovulation analysis in history
-            avgLutealLength: 14, medianLutealLength: 14, historyCount: lengths.length
+            avgLutealLength: lutealAvg, medianLutealLength: lutealMed, historyCount: lengths.length
         },
         cycleStarts: starts
     };
@@ -132,7 +170,7 @@ function predictFuture(currentStart: string, stats: CycleStatistics, count: numb
 
 // --- 3. Current Cycle Analysis (NFP State Machine) ---
 
-function analyzeCurrent(entries: Record<string, CycleEntry>, currentStart: string, stats: CycleStatistics, todayStr: string) {
+function analyzeCurrent(entries: Record<string, CycleEntry>, currentStart: string, stats: CycleStatistics, todayStr: string, periodLength: number = 5) {
     // Filter entries for current cycle
     const cycleEntries = Object.values(entries)
         .filter(e => e.date >= currentStart)
@@ -186,7 +224,7 @@ function analyzeCurrent(entries: Record<string, CycleEntry>, currentStart: strin
         } else {
             // Check for Menstruation
             const currentDay = diffDays(todayStr, currentStart) + 1;
-            if (currentDay <= 5) state = 'MENSTRUATION'; // Simple heuristic
+            if (currentDay <= periodLength) state = 'MENSTRUATION'; // Uses actual period length
             // Check for fertile window based on stats
             else {
                 const estOvu = stats.medianCycleLength - stats.medianLutealLength;
@@ -209,10 +247,10 @@ function analyzeCurrent(entries: Record<string, CycleEntry>, currentStart: strin
 
 export function runEngine(data: CycleData): EngineResult {
     const { stats, cycleStarts } = analyzeHistory(data.entries);
-    const lastStart = cycleStarts.length > 0 ? cycleStarts[cycleStarts.length - 1] : new Date().toISOString().split('T')[0];
-    const todayStr = new Date().toISOString().split('T')[0];
+    const lastStart = cycleStarts.length > 0 ? cycleStarts[cycleStarts.length - 1] : toLocalISO();
+    const todayStr = toLocalISO();
 
-    const currentAnalysis = analyzeCurrent(data.entries, lastStart, stats, todayStr);
+    const currentAnalysis = analyzeCurrent(data.entries, lastStart, stats, todayStr, data.periodLength || 5);
     const futureCycles = predictFuture(lastStart, stats);
 
     // --- Today's Prediction (Merged) ---
