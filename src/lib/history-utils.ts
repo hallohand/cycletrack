@@ -129,7 +129,7 @@ export function groupCycles(entriesMap: Record<string, CycleEntry>): CycleGroup[
 
             if (ovuDayIndex !== -1) {
                 if (i === ovuDayIndex) isOvulation = true;
-                if (i >= ovuDayIndex - 5 && i <= ovuDayIndex + 1) isFertile = true;
+                if (i >= ovuDayIndex - 5 && i <= ovuDayIndex) isFertile = true;
             }
 
             // Override if manual LH Peak (visual only? no, logic above handles it)
