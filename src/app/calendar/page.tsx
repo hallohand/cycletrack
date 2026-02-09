@@ -151,14 +151,14 @@ export default function CalendarPage() {
     };
 
     return (
-        <div className="flex flex-col min-h-0">
+        <div className="flex flex-col h-[calc(100dvh-210px)]">
             {/* Calendar with swipe + animation */}
             <div
-                className="px-2 pt-2 overflow-x-hidden shrink-0"
+                className="px-2 flex-1 min-h-0 overflow-x-hidden"
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
             >
-                <div className={`transition-all duration-200 ease-out ${getSlideClass()}`}>
+                <div className={`transition-all duration-200 ease-out h-full ${getSlideClass()}`}>
                     <Calendar
                         mode="single"
                         selected={date}
@@ -166,7 +166,7 @@ export default function CalendarPage() {
                         onMonthChange={setMonth}
                         onSelect={handleDaySelect}
                         locale={de}
-                        className="w-full"
+                        className="w-full h-full [--cell-size:clamp(28px,8vw,36px)]"
                         modifiers={modifiers}
                         modifiersClassNames={{
                             period: "bg-rose-100 text-rose-700 font-semibold rounded-md",
@@ -182,27 +182,27 @@ export default function CalendarPage() {
                 </div>
             </div>
 
-            {/* Bottom Summary - directly below calendar, no spacer */}
-            <div className="border-t bg-muted/30 p-4 mt-2">
+            {/* Bottom Summary — compact, shrink-0 */}
+            <div className="border-t bg-muted/30 px-4 py-2 shrink-0">
                 {/* Legend */}
-                <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 flex-wrap">
-                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-rose-200 border border-rose-300"></div> Periode</div>
-                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-sky-200 border border-sky-300"></div> Fruchtbar</div>
-                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full ring-2 ring-amber-400 bg-amber-50"></div> Eisprung</div>
-                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-rose-50 border border-dashed border-rose-300"></div> Prognose</div>
+                <div className="flex items-center gap-2.5 text-[10px] text-muted-foreground mb-1.5 flex-wrap">
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-sm bg-rose-200 border border-rose-300"></div> Periode</div>
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-sm bg-sky-200 border border-sky-300"></div> Fruchtbar</div>
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full ring-2 ring-amber-400 bg-amber-50"></div> Eisprung</div>
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-sm bg-rose-50 border border-dashed border-rose-300"></div> Prognose</div>
                 </div>
 
                 {/* Today Info */}
-                <div>
-                    <div className="text-xs text-muted-foreground">
-                        Heute, {new Date().toLocaleDateString('de-DE', { day: 'numeric', month: 'long' })}
-                    </div>
+                <div className="flex items-baseline gap-2">
+                    <span className="text-xs text-muted-foreground">
+                        Heute, {new Date().toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })}
+                    </span>
                     {todayPrediction ? (
-                        <div className="text-lg font-semibold">
+                        <span className="text-sm font-semibold">
                             ZT {todayPrediction.cycleDay} · {phaseLabel}
-                        </div>
+                        </span>
                     ) : (
-                        <div className="text-lg font-semibold text-muted-foreground">Keine Daten</div>
+                        <span className="text-sm font-semibold text-muted-foreground">Keine Daten</span>
                     )}
                 </div>
             </div>
