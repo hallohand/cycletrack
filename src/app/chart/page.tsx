@@ -113,9 +113,7 @@ export default function ChartPage() {
         }
     }, [chartData]);
 
-    if (!isLoaded) return <div className="p-8 text-center text-muted-foreground animate-pulse">Laden...</div>;
-
-    // SSR-safe window width
+    // SSR-safe window width (must be before any early return — Rules of Hooks)
     const [windowWidth, setWindowWidth] = useState(375);
     useEffect(() => {
         setWindowWidth(window.innerWidth);
@@ -123,6 +121,9 @@ export default function ChartPage() {
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    if (!isLoaded) return <div className="p-8 text-center text-muted-foreground animate-pulse">Laden...</div>;
+
     const chartWidth = Math.max(windowWidth, chartData.length * 40);
 
     return (
