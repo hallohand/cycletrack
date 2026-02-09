@@ -76,14 +76,14 @@ export default function ChartPage() {
                                 allowDataOverflow={false}
                             />
                             <YAxis
-                                domain={['auto', 'auto']}
+                                domain={[35.5, 37.5]}
                                 tickLine={false}
                                 axisLine={false}
                                 tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
                                 width={35}
                                 scale="linear"
                                 type="number"
-                                allowDataOverflow={true}
+                                allowDataOverflow={false} // Allow clipping if outside range? Or fit? User said "skala von 35,5 bis 37,5". So fixed.
                             />
                             <Tooltip
                                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
