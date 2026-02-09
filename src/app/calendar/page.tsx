@@ -153,7 +153,7 @@ export default function CalendarPage() {
         <div className="flex flex-col">
             {/* Calendar with swipe + animation */}
             <div
-                className="px-2 pt-2 overflow-hidden"
+                className="px-2 pt-2 overflow-x-clip"
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
             >
