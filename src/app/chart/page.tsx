@@ -274,6 +274,32 @@ export default function ChartPage() {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Legend */}
+            <div className="flex items-center gap-3 text-[11px] text-muted-foreground px-4 py-2 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                    <div className="w-4 h-0.5 bg-primary rounded"></div>
+                    Temperatur
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-sm bg-rose-200/60"></div>
+                    Periode
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-sm bg-sky-200/60"></div>
+                    Fruchtbar
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-amber-300 border-2 border-amber-500"></div>
+                    Eisprung
+                </div>
+                {engine?.currentCycle.coverline && (
+                    <div className="flex items-center gap-1.5">
+                        <div className={`w-4 h-0 border-t-2 ${engine.currentCycle.coverlineProvisional ? 'border-dashed border-gray-400' : 'border-solid border-red-500'}`}></div>
+                        Coverline{engine.currentCycle.coverlineProvisional ? ' (vorl.)' : ''}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

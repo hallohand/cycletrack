@@ -151,10 +151,10 @@ export default function CalendarPage() {
     };
 
     return (
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex flex-col min-h-0">
             {/* Calendar with swipe + animation */}
             <div
-                className="px-2 pt-2 overflow-hidden shrink-0"
+                className="px-2 pt-2 overflow-x-hidden shrink-0"
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
             >
