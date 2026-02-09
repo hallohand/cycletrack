@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { parseFemometerCSV } from '@/lib/importer';
 import { APP_VERSION, BUILD_DATE } from '@/lib/version';
-import { RefreshCw, Trash2, RotateCcw, Cloud, CloudOff, Download, Upload, Shield } from 'lucide-react';
+import { Trash2, RotateCcw, Cloud, Download, Upload, Shield } from 'lucide-react';
 import {
     getGistConfig, setGistConfig, clearGistConfig,
     syncToGist, restoreFromGist,
@@ -36,7 +36,6 @@ export default function SettingsPage() {
     const [localBackups, setLocalBackups] = useState<{ backup1: any; backup2: any; timestamp: string | null }>({ backup1: null, backup2: null, timestamp: null });
     const [hasGistToken, setHasGistToken] = useState(false);
 
-    // Load client-only state after mount
     useEffect(() => {
         const config = getGistConfig();
         setGistToken(config.token || '');
@@ -51,12 +50,15 @@ export default function SettingsPage() {
         const reader = new FileReader();
         reader.onload = (event) => {
             try {
-                const json = JSON.parse(event.target?.result as string);
-                if (json.entries && json.cycleLength) {
-                    importData(json);
-                    toast.success('Daten erfolgreich importiert');
+                const text = event.target?.result as string;
+                const result = importData(text);
+                if (result.count > 0) {
+                    toast.success(`${result.count} Einträge importiert`);
+                    if (result.warnings.length > 0) {
+                        toast.warning(result.warnings[0]);
+                    }
                 } else {
-                    toast.error('Ungültiges Dateiformat');
+                    toast.error(result.warnings[0] || 'Import fehlgeschlagen');
                 }
             } catch (err) {
                 toast.error('Fehler beim Lesen der Datei');
@@ -110,10 +112,10 @@ export default function SettingsPage() {
         toast.success('Alle Daten gelöscht.');
     };
 
-    // Cloud Backup
     const handleSaveToken = () => {
         if (!gistToken.trim()) {
             clearGistConfig();
+            setHasGistToken(false);
             toast.success('Cloud-Backup deaktiviert');
             return;
         }
@@ -156,7 +158,6 @@ export default function SettingsPage() {
         }
     };
 
-    // PWA Reset Logic
     const handleForceUpdate = async () => {
         if ('serviceWorker' in navigator) {
             const registrations = await navigator.serviceWorker.getRegistrations();
@@ -168,7 +169,6 @@ export default function SettingsPage() {
                 await Promise.all(keys.map(key => caches.delete(key)));
             }
             window.location.reload();
-            toast.success('App wird neu geladen...');
         } else {
             window.location.reload();
         }
@@ -178,6 +178,7 @@ export default function SettingsPage() {
         <div className="space-y-6 pb-24 px-4 pt-6">
             <h2 className="text-2xl font-bold tracking-tight">Einstellungen</h2>
 
+            {/* Cycle Settings */}
             <Card className="border-none shadow-sm bg-white">
                 <CardHeader>
                     <CardTitle>Zyklus-Einstellungen</CardTitle>
@@ -205,6 +206,7 @@ export default function SettingsPage() {
                 </CardContent>
             </Card>
 
+            {/* Data Management */}
             <Card className="border-none shadow-sm bg-white">
                 <CardHeader>
                     <CardTitle>Datenverwaltung</CardTitle>
@@ -214,7 +216,7 @@ export default function SettingsPage() {
                     <div className="grid grid-cols-2 gap-4">
                         <Button variant="outline" onClick={exportData} className="w-full gap-2">
                             <Download className="w-4 h-4" />
-                            Backup erstellen
+                            Backup
                         </Button>
                         <div className="relative">
                             <Button variant="outline" className="w-full gap-2">
@@ -231,23 +233,24 @@ export default function SettingsPage() {
                         </div>
                     </div>
 
-                    {/* Local Backup Restore */}
+                    {/* Local Auto-Backup Restore */}
                     {localBackups.timestamp && (
                         <div className="border-t pt-4 space-y-2">
                             <Label className="text-xs text-muted-foreground">
-                                Lokales Auto-Backup: {new Date(localBackups.timestamp).toLocaleString('de-DE')}
+                                Auto-Backup: {new Date(localBackups.timestamp).toLocaleString('de-DE')}
                             </Label>
                             <div className="grid grid-cols-2 gap-2">
                                 <Button variant="ghost" size="sm" onClick={() => handleRestoreLocalBackup(1)} disabled={!localBackups.backup1}>
-                                    Backup 1 laden
+                                    Backup 1
                                 </Button>
                                 <Button variant="ghost" size="sm" onClick={() => handleRestoreLocalBackup(2)} disabled={!localBackups.backup2}>
-                                    Backup 2 laden
+                                    Backup 2
                                 </Button>
                             </div>
                         </div>
                     )}
 
+                    {/* Femometer Import */}
                     <div className="border-t pt-4">
                         <Label className="mb-2 block">Femometer Import (.csv)</Label>
                         <div className="relative">
@@ -262,10 +265,11 @@ export default function SettingsPage() {
                             />
                         </div>
                         <p className="text-xs text-muted-foreground mt-2">
-                            Exportiere deine Daten aus der Femometer App als CSV und lade sie hier hoch.
+                            Exportiere deine Daten aus der Femometer App als CSV.
                         </p>
                     </div>
 
+                    {/* Delete All */}
                     <div className="border-t pt-4">
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -277,7 +281,7 @@ export default function SettingsPage() {
                                 <AlertDialogHeader>
                                     <AlertDialogTitle>Alle Daten löschen?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                        Diese Aktion kann nicht rückgängig gemacht werden. Alle Zyklusdaten, Einträge und Einstellungen werden gelöscht.
+                                        Alle Zyklusdaten, Einträge und Einstellungen werden unwiderruflich gelöscht.
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
@@ -300,12 +304,12 @@ export default function SettingsPage() {
                         Cloud-Backup
                     </CardTitle>
                     <CardDescription>
-                        Sichere deine Daten automatisch als privates GitHub Gist.
+                        Automatisch als privates GitHub Gist sichern.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="gistToken">GitHub Personal Access Token</Label>
+                        <Label htmlFor="gistToken">GitHub Token</Label>
                         <Input
                             id="gistToken"
                             type="password"
@@ -314,11 +318,11 @@ export default function SettingsPage() {
                             placeholder="ghp_..."
                         />
                         <p className="text-xs text-muted-foreground">
-                            Erstelle ein Token auf github.com/settings/tokens mit dem Scope &quot;gist&quot;.
+                            github.com/settings/tokens → Scope &quot;gist&quot;
                         </p>
                     </div>
-                    <Button variant="outline" onClick={handleSaveToken} className="w-full">
-                        <Shield className="w-4 h-4 mr-2" />
+                    <Button variant="outline" onClick={handleSaveToken} className="w-full gap-2">
+                        <Shield className="w-4 h-4" />
                         Token speichern
                     </Button>
 
@@ -330,13 +334,14 @@ export default function SettingsPage() {
                             </Button>
                             <Button variant="outline" onClick={handleCloudRestore} disabled={isRestoring} className="gap-2">
                                 <Download className="w-4 h-4" />
-                                {isRestoring ? 'Lade...' : 'Aus Cloud laden'}
+                                {isRestoring ? 'Lade...' : 'Aus Cloud'}
                             </Button>
                         </div>
                     )}
                 </CardContent>
             </Card>
 
+            {/* App Info */}
             <Card className="border-none shadow-sm bg-muted/30">
                 <CardHeader className="pb-2">
                     <CardTitle className="text-base">App Info & Updates</CardTitle>
@@ -353,11 +358,8 @@ export default function SettingsPage() {
                         className="w-full gap-2 mt-2 bg-white hover:bg-gray-100 text-foreground border-gray-200"
                     >
                         <RotateCcw className="w-3.5 h-3.5" />
-                        Update erzwingen / Neu laden
+                        Update erzwingen
                     </Button>
-                    <p className="mt-1 opacity-70">
-                        Drücke dies, wenn die App nicht aktuell scheint (Start/End-Daten falsch).
-                    </p>
                 </CardContent>
             </Card>
 

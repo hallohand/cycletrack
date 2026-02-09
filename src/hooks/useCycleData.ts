@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { CycleData, DEFAULT_CYCLE_DATA, CycleEntry } from '@/lib/types';
 import { rotateLocalBackup, saveIndexedDBSnapshot, debouncedCloudSync } from '@/lib/backup';
+import { validateImportData } from '@/lib/schemas';
 
 const STORAGE_KEY = 'cycletrack_data';
 const LAST_SNAPSHOT_KEY = 'cycletrack_last_snapshot';
@@ -79,26 +80,20 @@ export function useCycleData() {
         saveData({ ...data, ...settings });
     };
 
-    const importData = (jsonData: string): number => {
-        try {
-            const parsed = JSON.parse(jsonData);
-            // Simple validation
-            if (!parsed.entries) throw new Error("Invalid format");
-
-            // Merge or replace? Let's merge for safety, or replace if it's a full restore.
-            // The original app seemed to replace or merge blindly.
-            // Let's go with merge.
-            const mergedData = {
-                ...data,
-                ...parsed,
-                entries: { ...data.entries, ...parsed.entries }
-            };
-            saveData(mergedData);
-            return Object.keys(parsed.entries).length;
-        } catch (e) {
-            console.error(e);
-            return 0;
+    const importData = (jsonData: string): { count: number; warnings: string[] } => {
+        const result = validateImportData(jsonData);
+        if (!result.success) {
+            console.error('Import validation failed:', result.error, result.details);
+            return { count: 0, warnings: [result.error, ...result.details] };
         }
+
+        const mergedData = {
+            ...data,
+            ...result.data,
+            entries: { ...data.entries, ...result.data.entries }
+        };
+        saveData(mergedData);
+        return { count: Object.keys(result.data.entries).length, warnings: result.warnings };
     };
 
     const clearAllData = () => {
