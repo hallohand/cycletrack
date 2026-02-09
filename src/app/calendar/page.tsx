@@ -2,12 +2,12 @@
 
 import { useCycleData } from '@/hooks/useCycleData';
 import { Calendar } from '@/components/ui/calendar';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { runEngine } from '@/lib/cycle-calculations';
 import { groupCycles } from '@/lib/history-utils';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import { de } from 'date-fns/locale';
+import { addMonths, subMonths } from 'date-fns';
 import { Info, Heart, Thermometer, Droplet, Activity, Plus } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
@@ -15,7 +15,32 @@ import { cn } from '@/lib/utils';
 export default function CalendarPage() {
     const { data, isLoaded } = useCycleData();
     const [date, setDate] = useState<Date | undefined>(new Date());
+    const [month, setMonth] = useState<Date>(new Date());
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+
+    // Swipe handling
+    const touchStartX = useRef(0);
+    const touchStartY = useRef(0);
+
+    const handleTouchStart = useCallback((e: React.TouchEvent) => {
+        touchStartX.current = e.touches[0].clientX;
+        touchStartY.current = e.touches[0].clientY;
+    }, []);
+
+    const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+        const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+        const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+        // Only trigger if horizontal swipe is dominant and > 50px
+        if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+            if (deltaX < 0) {
+                // Swipe left → next month
+                setMonth(prev => addMonths(prev, 1));
+            } else {
+                // Swipe right → previous month
+                setMonth(prev => subMonths(prev, 1));
+            }
+        }
+    }, []);
 
     const engine = useMemo(() => isLoaded ? runEngine(data) : null, [data, isLoaded]);
     const historyCycles = useMemo(() => isLoaded ? groupCycles(data.entries) : [], [data, isLoaded]);
@@ -29,7 +54,7 @@ export default function CalendarPage() {
     const safeSelectedDateStr = date ? toLocalISO(date) : '';
     const selectedEntry = safeSelectedDateStr ? data.entries[safeSelectedDateStr] : null;
 
-    // --- Simple Modifiers (no start/middle/end complexity) ---
+    // --- Simple Modifiers ---
     const modifiers = useMemo(() => {
         if (!engine) return {};
 
@@ -49,7 +74,7 @@ export default function CalendarPage() {
             return new Date(y, mo - 1, da);
         };
 
-        // 1. PAST DATA from history
+        // 1. PAST DATA
         historyCycles.forEach(cycle => {
             cycle.days.forEach(day => {
                 const localDate = parseDate(day.date);
@@ -61,14 +86,13 @@ export default function CalendarPage() {
             });
         });
 
-        // 2. FUTURE DATA from predictions
+        // 2. FUTURE DATA
         engine.predictions.futureCycles.forEach(cycle => {
             const parse = (iso: string) => {
                 const [y, mo, da] = iso.split('-').map(Number);
                 return new Date(y, mo - 1, da);
             };
 
-            // Period range
             const pStart = parse(cycle.cycleStart);
             for (let i = 0; i < (data.periodLength || 5); i++) {
                 const d = new Date(pStart);
@@ -76,7 +100,6 @@ export default function CalendarPage() {
                 m.predicted_period.push(d);
             }
 
-            // Fertile range
             const fStart = parse(cycle.fertileStart);
             const fEnd = parse(cycle.fertileEnd);
             let cur = new Date(fStart);
@@ -85,7 +108,6 @@ export default function CalendarPage() {
                 cur.setDate(cur.getDate() + 1);
             }
 
-            // Ovulation
             m.predicted_ovulation.push(parse(cycle.ovulationDate));
         });
 
@@ -109,11 +131,17 @@ export default function CalendarPage() {
 
     return (
         <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden">
-            {/* Calendar */}
-            <div className="flex-1 overflow-auto px-2 pt-2">
+            {/* Calendar with swipe */}
+            <div
+                className="px-2 pt-2"
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+            >
                 <Calendar
                     mode="single"
                     selected={date}
+                    month={month}
+                    onMonthChange={setMonth}
                     onSelect={handleDaySelect}
                     locale={de}
                     className="w-full"
@@ -131,7 +159,10 @@ export default function CalendarPage() {
                 />
             </div>
 
-            {/* Bottom Summary */}
+            {/* Spacer pushes legend to bottom */}
+            <div className="flex-1" />
+
+            {/* Bottom Summary - pinned to bottom */}
             <div className="border-t bg-muted/30 p-4 pb-6">
                 {/* Legend */}
                 <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 flex-wrap">

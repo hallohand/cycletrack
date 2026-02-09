@@ -13,7 +13,7 @@ const NavItem = ({ href, icon: Icon, label, isActive }: { href: string; icon: an
             <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
         </div>
         {/* <span className={`text-[10px] font-medium transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>{label}</span> */}
-        {isActive && <div className="absolute -bottom-2 w-1 h-1 bg-primary rounded-full" />}
+
     </Link>
 );
 
