@@ -140,26 +140,54 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                             </div>
                         </div>
 
-                        {/* Period */}
-                        <div className="space-y-2">
-                            <Label>Periode</Label>
-                            <div className="flex flex-wrap gap-2">
-                                {[
-                                    { val: 'light', label: 'Leicht' },
-                                    { val: 'medium', label: 'Mittel' },
-                                    { val: 'heavy', label: 'Stark' },
-                                    { val: 'spotting', label: 'Schmier' },
-                                ].map(t => (
-                                    <Button
-                                        key={t.val}
-                                        variant={entry.period === t.val ? "default" : "outline"}
-                                        size="sm"
-                                        className={entry.period === t.val ? 'bg-primary text-primary-foreground' : ''}
-                                        onClick={() => handleOptionSelect('period', t.val)}
-                                    >
-                                        {t.label}
-                                    </Button>
-                                ))}
+
+                        {/* Period & Pain */}
+                        <div className="space-y-4 border-b pb-4">
+                            <Label className="text-base font-semibold">Blutung & Schmerz</Label>
+
+                            {/* Period Flow */}
+                            <div className="space-y-2">
+                                <Label className="text-xs text-muted-foreground">Blutungsstärke</Label>
+                                <div className="flex flex-wrap gap-2">
+                                    {[
+                                        { val: 'light', label: 'Leicht' },
+                                        { val: 'medium', label: 'Mittel' },
+                                        { val: 'heavy', label: 'Stark' },
+                                    ].map(t => (
+                                        <Button
+                                            key={t.val}
+                                            variant={entry.period === t.val ? "default" : "outline"}
+                                            size="sm"
+                                            className={entry.period === t.val ? 'bg-rose-500 hover:bg-rose-600 text-white' : ''}
+                                            onClick={() => handleOptionSelect('period', t.val)}
+                                        >
+                                            {t.label}
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Period Pain */}
+                            <div className="space-y-2">
+                                <Label className="text-xs text-muted-foreground">Schmerzen</Label>
+                                <div className="flex flex-wrap gap-2">
+                                    {[
+                                        { val: 'light', label: 'Leicht', icon: '⚡' },
+                                        { val: 'medium', label: 'Mittel', icon: '⚡⚡' },
+                                        { val: 'strong', label: 'Stark', icon: '🔥' },
+                                        { val: 'extreme', label: 'Extrem', icon: '🚑' },
+                                    ].map(p => (
+                                        <Button
+                                            key={p.val}
+                                            variant={entry.pain === p.val ? "default" : "outline"}
+                                            size="sm"
+                                            className={entry.pain === p.val ? 'bg-orange-500 hover:bg-orange-600 text-white' : ''}
+                                            onClick={() => handleOptionSelect('pain', p.val)}
+                                        >
+                                            <span className="mr-1">{p.icon}</span> {p.label}
+                                        </Button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
 
@@ -243,6 +271,14 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                         <div className="space-y-2">
                             <Label>Symptome</Label>
                             <div className="flex flex-wrap gap-1.5">
+                                <Button
+                                    variant={entry.period === 'spotting' ? "default" : "outline"}
+                                    size="sm"
+                                    className={entry.period === 'spotting' ? 'bg-orange-500 hover:bg-orange-600 text-white text-xs' : 'text-xs'}
+                                    onClick={() => handleOptionSelect('period', 'spotting')}
+                                >
+                                    🩸 Schmierblutung
+                                </Button>
                                 {symptoms.map(s => (
                                     <Button
                                         key={s}

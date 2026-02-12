@@ -31,7 +31,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#fff1f2" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
       </head>
-      <body className={" h-full overflow-hidden overscroll-none touch-pan-x touch-pan-y"}>
+      <body className={"h-full overflow-y-auto overscroll-none touch-pan-x touch-pan-y"}>
         <AppLock>
           <AppLayout>{children}</AppLayout>
         </AppLock>

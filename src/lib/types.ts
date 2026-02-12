@@ -1,4 +1,5 @@
 export type PeriodFlow = 'light' | 'medium' | 'heavy' | 'spotting';
+export type PeriodPain = 'light' | 'medium' | 'strong' | 'extreme';
 export type CervixType = 'dry' | 'sticky' | 'creamy' | 'watery' | 'eggwhite';
 export type LHTestResult = 'negative' | 'positive' | 'peak';
 export type SexType = 'protected' | 'unprotected' | 'none';
@@ -19,6 +20,7 @@ export interface CycleEntry {
     temperature?: number | null;
     excludeTemp?: boolean;
     period?: PeriodFlow | null;
+    pain?: PeriodPain | null;
     cervix?: CervixType | null;
     lhTest?: LHTestResult | null;
     sex?: SexType | null;
