@@ -80,18 +80,36 @@ export interface FutureCycle {
     fertileEnd: string;
 }
 
+
+export interface DateRangePrediction {
+    mid: string;
+    earliest: string;
+    latest: string;
+    confidence: 'LOW' | 'MED' | 'HIGH';
+}
+
+export interface CyclePhaseState {
+    startDate: string;
+    day: number;
+    state: CycleState;
+
+    // Predictions for THIS cycle
+    ovulationPred?: DateRangePrediction;
+    nextPeriodPred?: DateRangePrediction;
+
+    // Confirmed Data
+    ovulationConfirmedDate?: string;
+    coverline?: number;
+    lhPeaks: string[];
+    activePeak?: string;
+    coverlineProvisional?: boolean;
+}
+
 export interface EngineResult {
     statistics: CycleStatistics;
-    currentCycle: {
-        startDate: string;
-        day: number;
-        state: CycleState;
-        ovulationConfirmedDate?: string; // If confirmed
-        coverline?: number;
-        coverlineProvisional?: boolean;
-    };
+    currentCycle: CyclePhaseState;
     predictions: {
         today: DailyPrediction;
-        futureCycles: FutureCycle[]; // Next 6 months
+        futureCycles: FutureCycle[];
     };
 }

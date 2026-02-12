@@ -129,7 +129,8 @@ export function groupCycles(entriesMap: Record<string, CycleEntry>): CycleGroup[
 
             if (ovuDayIndex !== -1) {
                 if (i === ovuDayIndex) isOvulation = true;
-                if (i >= ovuDayIndex - 5 && i <= ovuDayIndex) isFertile = true;
+                // Fertile window: 5 days before + 1 day after ovulation (sperm 5d, egg 24h)
+                if (i >= ovuDayIndex - 5 && i <= ovuDayIndex + 1) isFertile = true;
             }
 
             // Override if manual LH Peak (visual only? no, logic above handles it)
@@ -174,8 +175,8 @@ export function groupCycles(entriesMap: Record<string, CycleEntry>): CycleGroup[
             } else {
                 const dayDiff = diffDays(e.date, currentStart);
 
-                // Rule 1: Must be > 14 days from start
-                if (dayDiff < 14) {
+                // Rule 1: Must be > 20 days from start (Standard Min Cycle)
+                if (dayDiff < 20) {
                     isNewCycle = false;
                 } else {
                     // Rule 2: Must be > 10 days from last recorded period flow

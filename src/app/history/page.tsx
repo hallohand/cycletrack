@@ -9,6 +9,8 @@ import { Heart } from 'lucide-react';
 
 import { APP_VERSION } from '@/lib/version';
 
+import { PDFExportButton } from '@/components/history/PDFExportButton';
+
 export default function HistoryPage() {
     const { data, isLoaded } = useCycleData();
 
@@ -21,9 +23,9 @@ export default function HistoryPage() {
 
     return (
         <div className="space-y-6 pb-24 px-4 pt-6">
-            <div className="flex justify-between items-baseline">
+            <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold tracking-tight">Meine Zyklen</h2>
-                <span className="text-xs text-muted-foreground font-mono">v{APP_VERSION}</span>
+                <PDFExportButton cycles={cycles} />
             </div>
 
             <div className="space-y-4">

@@ -11,32 +11,69 @@ const MAX_SNAPSHOTS = 30;
 
 // --- Local Rotation Backup ---
 
+interface BackupSlot {
+    timestamp: string;
+    data: CycleData;
+}
+
 export function rotateLocalBackup(currentJson: string) {
     try {
-        const prev1 = localStorage.getItem(BACKUP_KEY_1);
-        if (prev1) {
-            localStorage.setItem(BACKUP_KEY_2, prev1);
+        const now = new Date().toISOString();
+        const currentData = JSON.parse(currentJson); // Validate & parse
+
+        // Get previous backup 1
+        const prev1Raw = localStorage.getItem(BACKUP_KEY_1);
+
+        if (prev1Raw) {
+            // Move 1 to 2
+            localStorage.setItem(BACKUP_KEY_2, prev1Raw);
         }
-        localStorage.setItem(BACKUP_KEY_1, currentJson);
-        localStorage.setItem(BACKUP_TIMESTAMP_KEY, new Date().toISOString());
+
+        // Save new 1
+        const newSlot: BackupSlot = { timestamp: now, data: currentData };
+        localStorage.setItem(BACKUP_KEY_1, JSON.stringify(newSlot));
+
+        // Remove old global timestamp key as it's deprecated
+        localStorage.removeItem(BACKUP_TIMESTAMP_KEY);
     } catch (e) {
         console.warn('Backup rotation failed:', e);
     }
 }
 
-export function getLocalBackups(): { backup1: CycleData | null; backup2: CycleData | null; timestamp: string | null } {
-    try {
-        const b1 = localStorage.getItem(BACKUP_KEY_1);
-        const b2 = localStorage.getItem(BACKUP_KEY_2);
-        const ts = localStorage.getItem(BACKUP_TIMESTAMP_KEY);
-        return {
-            backup1: b1 ? JSON.parse(b1) : null,
-            backup2: b2 ? JSON.parse(b2) : null,
-            timestamp: ts,
-        };
-    } catch {
-        return { backup1: null, backup2: null, timestamp: null };
-    }
+export function getLocalBackups(): {
+    backup1: { data: CycleData; timestamp: string } | null;
+    backup2: { data: CycleData; timestamp: string } | null;
+} {
+    const parseSlot = (key: string): { data: CycleData; timestamp: string } | null => {
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) return null;
+
+            const parsed = JSON.parse(raw);
+
+            // Check if it's the new format
+            if (parsed.timestamp && parsed.data) {
+                return parsed;
+            }
+
+            // Fallback: Old format (raw CycleData)
+            // Does it have "entries"? Then it's likely CycleData
+            if (parsed.entries) {
+                // Approximate timestamp? No, just use "Unknown" or null.
+                // Or try to recover from the deprecated global key if it's backup 1?
+                // Let's just return it with "Legacy" timestamp.
+                return { data: parsed, timestamp: 'Legacy' };
+            }
+            return null;
+        } catch {
+            return null;
+        }
+    };
+
+    return {
+        backup1: parseSlot(BACKUP_KEY_1),
+        backup2: parseSlot(BACKUP_KEY_2),
+    };
 }
 
 // --- IndexedDB Snapshots (for larger/persistent backups) ---

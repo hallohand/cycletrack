@@ -1,4 +1,15 @@
-import { CycleData, CycleEntry, CycleStatistics, EngineResult, CycleState, FutureCycle, DailyPrediction } from './types';
+
+import {
+    CycleData,
+    CycleEntry,
+    CycleStatistics,
+    EngineResult,
+    CycleState,
+    FutureCycle,
+    DailyPrediction,
+    CyclePhaseState,
+    DateRangePrediction
+} from './types';
 import { toLocalISO } from './utils';
 
 // --- Helpers ---
@@ -22,7 +33,7 @@ function median(values: number[]): number {
 }
 
 function stdDev(values: number[], meanVal: number): number {
-    if (values.length <= 1) return 1; // Default uncertainty
+    if (values.length <= 1) return 1;
     const variance = values.reduce((sum, val) => sum + Math.pow(val - meanVal, 2), 0) / (values.length - 1);
     return Math.sqrt(variance);
 }
@@ -34,74 +45,90 @@ function analyzeHistory(entries: Record<string, CycleEntry>): { stats: CycleStat
 
     // Identify Cycle Starts
     const starts: string[] = [];
+    let lastStart = '';
+
     for (let i = 0; i < sortedEntries.length; i++) {
         const e = sortedEntries[i];
         const prev = i > 0 ? sortedEntries[i - 1] : null;
-        // Spotting should NOT start a new cycle
         const isPeriodFlow = e.period && e.period !== 'spotting';
-        const prevIsPeriodFlow = prev?.period && prev.period !== 'spotting';
-        const isStart = isPeriodFlow && (!prevIsPeriodFlow || diffDays(e.date, prev!.date) > 8);
-        if (isStart) starts.push(e.date);
+
+        let isStartCandidate = false;
+
+        if (i === 0) {
+            if (isPeriodFlow) isStartCandidate = true;
+        } else {
+            const prevIsPeriodFlow = prev?.period && prev.period !== 'spotting';
+            if (isPeriodFlow && (!prevIsPeriodFlow || diffDays(e.date, prev!.date) > 8)) {
+                isStartCandidate = true;
+            }
+        }
+
+        if (isStartCandidate) {
+            // Rule: Check against last confirmed start (Min 20 days)
+            if (lastStart && diffDays(e.date, lastStart) < 20) {
+                isStartCandidate = false;
+            }
+
+            if (isStartCandidate) {
+                starts.push(e.date);
+                lastStart = e.date;
+            }
+        }
     }
 
     // Calculate Lengths
     const lengths: number[] = [];
     for (let i = 0; i < starts.length - 1; i++) {
         const len = diffDays(starts[i + 1], starts[i]);
-        if (len >= 20 && len <= 45) { // Filter obvious outliers for robust stats
+        if (len >= 15 && len <= 90) {
             lengths.push(len);
         }
     }
 
-    // Fallback if no history
+    // Fallback if insufficient history
     if (lengths.length < 2) {
         return {
             stats: {
-                avgCycleLength: 28, medianCycleLength: 28, stdDevCycleLength: 1.5,
+                avgCycleLength: 28, medianCycleLength: 28, stdDevCycleLength: 3,
                 avgLutealLength: 14, medianLutealLength: 14, historyCount: lengths.length
             },
             cycleStarts: starts
         };
     }
 
+    // Winsorization-like logic? For now, simple median/stddev on filtered list
     const med = median(lengths);
     const avg = lengths.reduce((a, b) => a + b, 0) / lengths.length;
     const sd = stdDev(lengths, avg);
 
-    // Calculate actual luteal phase from confirmed ovulations
+    // Calculate Luteal Phase (Retrospective)
+    // We need to run the BBT logic on past cycles to find confirmed ovulations!
     const lutealLengths: number[] = [];
+
+    // Iterate over past cycles
     for (let i = 0; i < starts.length - 1; i++) {
         const cycleStart = starts[i];
         const nextStart = starts[i + 1];
-        const cycleLen = diffDays(nextStart, cycleStart);
-        if (cycleLen < 20 || cycleLen > 45) continue;
 
-        // Find confirmed ovulation in this cycle via BBT shift
+        // Extract cycle entries
         const cycleEntries = Object.values(entries)
             .filter(e => e.date >= cycleStart && e.date < nextStart)
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        const validTemps = cycleEntries.filter(e => e.temperature && !e.excludeTemp);
 
-        for (let j = 6; j < validTemps.length - 2; j++) {
-            const prev6 = validTemps.slice(j - 6, j);
-            const next3 = validTemps.slice(j, j + 3);
-            if (prev6.length < 6) continue;
-            const baseline = Math.max(...prev6.map(e => e.temperature!));
-            const threshold = baseline + 0.2;
-            const isShift = next3.every(e => e.temperature! >= baseline + 0.05) && next3[2].temperature! >= threshold;
-            if (isShift) {
-                const ovuDate = addDays(validTemps[j].date, -1);
-                const luteal = diffDays(nextStart, ovuDate);
-                if (luteal >= 8 && luteal <= 20) lutealLengths.push(luteal);
-                break;
+        // Attempt BBT confirmation
+        const bbtResult = confirmOvulationBBT(cycleEntries);
+        if (bbtResult.confirmed && bbtResult.date) {
+            const luteal = diffDays(nextStart, bbtResult.date);
+            if (luteal >= 9 && luteal <= 18) { // Valid luteal range
+                lutealLengths.push(luteal);
             }
         }
     }
 
-    const lutealAvg = lutealLengths.length >= 2
+    const lutealAvg = lutealLengths.length > 0
         ? lutealLengths.reduce((a, b) => a + b, 0) / lutealLengths.length
         : 14;
-    const lutealMed = lutealLengths.length >= 2 ? median(lutealLengths) : 14;
+    const lutealMed = lutealLengths.length > 0 ? median(lutealLengths) : 14;
 
     return {
         stats: {
@@ -112,179 +139,284 @@ function analyzeHistory(entries: Record<string, CycleEntry>): { stats: CycleStat
     };
 }
 
-// --- 2. Multi-Month Prediction (Iterative) ---
 
-function predictFuture(currentStart: string, stats: CycleStatistics, count: number = 6): FutureCycle[] {
+// --- 2. BBT & LH Logic ---
+
+interface BBTConfirmation {
+    confirmed: boolean;
+    date?: string; // Ovulation Date (Day before shift)
+    coverline?: number;
+    firstHighDate?: string;
+}
+
+function confirmOvulationBBT(cycleEntries: CycleEntry[]): BBTConfirmation {
+    const validTemps = cycleEntries.filter(e => e.temperature && !e.excludeTemp);
+    if (validTemps.length < 9) return { confirmed: false }; // Need at least 6 low + 3 high
+
+    // Sliding window for 3-over-6 rule
+    for (let i = 6; i < validTemps.length - 2; i++) {
+        const prev6 = validTemps.slice(i - 6, i);
+        const next3 = validTemps.slice(i, i + 3);
+
+        const baseline = Math.max(...prev6.map(e => e.temperature!));
+        const threshold = baseline + 0.15; // Slightly relaxed from 0.20 strict NFP
+
+        // Rule: All 3 next temps > baseline
+        // And 3rd temp >= threshold (or maybe just strict logical shift)
+
+        const isShift = next3.every(e => e.temperature! > baseline) &&
+            (next3[2].temperature! >= threshold || next3.every(e => e.temperature! >= baseline + 0.05));
+
+        if (isShift) {
+            return {
+                confirmed: true,
+                date: addDays(validTemps[i].date, -1), // Ovulation is day before first high
+                coverline: baseline,
+                firstHighDate: validTemps[i].date
+            };
+        }
+    }
+    return { confirmed: false };
+}
+
+function findLHPeaks(cycleEntries: CycleEntry[]): string[] {
+    return cycleEntries
+        .filter(e => e.lhTest === 'peak' || e.lhTest === 'positive')
+        .map(e => e.date);
+}
+
+
+// --- 3. Current Cycle Analysis (State Machine) ---
+
+function analyzeCurrent(
+    entries: Record<string, CycleEntry>,
+    currentStart: string,
+    stats: CycleStatistics,
+    todayStr: string
+): CyclePhaseState {
+
+    // Sort & Filter
+    const cycleEntries = Object.values(entries)
+        .filter(e => e.date >= currentStart)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    const daysSinceStart = diffDays(todayStr, currentStart) + 1;
+
+    // 1. Detect LH Peaks & BBT
+    const lhPeaks = findLHPeaks(cycleEntries); // High/Positive
+    const latestPeak = lhPeaks.length > 0 ? lhPeaks[lhPeaks.length - 1] : undefined;
+
+    const bbt = confirmOvulationBBT(cycleEntries);
+
+    // 2. Determine State
+    let state: CycleState = 'PRE_FERTILE';
+
+    // Check for bleeding first (only if very early?) 
+    // Actually if we simply have bleeding today, we are in menstruation?
+    const todayEntry = entries[todayStr];
+    if (todayEntry?.period && todayEntry.period !== 'spotting') {
+        // Only if early in cycle? Or creates new cycle?
+        // Analyzing "Current" assumes 'currentStart' is the latest valid start. 
+        // So bleeding today aligns with MENSTRUATION.
+        if (daysSinceStart <= 7) state = 'MENSTRUATION';
+    }
+
+    if (state !== 'MENSTRUATION') {
+        if (bbt.confirmed) {
+            state = 'OVU_CONFIRMED';
+        } else if (latestPeak) {
+            const daysSincePeak = diffDays(todayStr, latestPeak);
+            if (daysSincePeak === 0 || daysSincePeak === 1) {
+                state = 'PEAK_LH';
+            } else if (daysSincePeak > 1 && daysSincePeak < 5) {
+                state = 'POST_OVU_PENDING';
+            } else if (daysSincePeak >= 5) {
+                state = 'ANOVULATORY_SUSPECTED';
+            }
+        } else {
+            // Statistical windows
+            const estOvu = stats.medianCycleLength - stats.medianLutealLength;
+            // Fertile: Ovu - 5 to Ovu + 1
+            if (daysSinceStart >= estOvu - 5 && daysSinceStart <= estOvu + 1) {
+                state = 'FERTILE_MID';
+            }
+        }
+    }
+
+    // 3. Predictions for THIS cycle
+    // If Ovulation Confirmed:
+    // Ovu = bbt.date
+    // Period = Ovu + LL_med
+
+    let ovDateMid: string;
+    let ovDateMin: string;
+    let ovDateMax: string;
+    let ovConf: 'LOW' | 'MED' | 'HIGH' = 'LOW';
+
+    if (bbt.confirmed && bbt.date) {
+        ovDateMid = bbt.date;
+        ovDateMin = bbt.date;
+        ovDateMax = bbt.date;
+        ovConf = 'HIGH';
+    } else if (latestPeak) {
+        // Peak Rule: Ovu is Peak+1 (range +1 to +2)
+        const pDate = new Date(latestPeak);
+        ovDateMid = addDays(latestPeak, 1);
+        ovDateMin = addDays(latestPeak, 0);
+        ovDateMax = addDays(latestPeak, 2);
+        ovConf = 'MED';
+    } else {
+        // Statistic
+        const day = stats.medianCycleLength - stats.medianLutealLength;
+        ovDateMid = addDays(currentStart, day);
+        ovDateMin = addDays(currentStart, day - 2);
+        ovDateMax = addDays(currentStart, day + 2);
+        ovConf = 'LOW';
+    }
+
+    // Next Period Prediction
+    let nextPerMid: string;
+    let nextPerMin: string;
+    let nextPerMax: string;
+    let nextConf: 'LOW' | 'MED' | 'HIGH' = 'LOW';
+
+    if (bbt.confirmed && bbt.date) {
+        // Driven by Luteal
+        nextPerMid = addDays(bbt.date, stats.medianLutealLength);
+        nextPerMin = addDays(bbt.date, stats.medianLutealLength - 1);
+        nextPerMax = addDays(bbt.date, stats.medianLutealLength + 1);
+        nextConf = 'HIGH';
+    } else {
+        // Cycle Length statistics
+        // If Peak exists, use Peak + 1 + LL
+        if (latestPeak) {
+            nextPerMid = addDays(latestPeak, 1 + stats.medianLutealLength);
+            nextConf = 'MED';
+        } else {
+            nextPerMid = addDays(currentStart, stats.medianCycleLength);
+            nextConf = 'LOW';
+        }
+        // Use SD for range
+        const u = stats.stdDevCycleLength;
+        nextPerMin = addDays(nextPerMid, -Math.round(u));
+        nextPerMax = addDays(nextPerMid, Math.round(u));
+    }
+
+    return {
+        startDate: currentStart,
+        day: daysSinceStart,
+        state,
+        ovulationConfirmedDate: bbt.confirmed ? bbt.date : undefined,
+        coverline: bbt.coverline,
+        coverlineProvisional: !bbt.confirmed && cycleEntries.filter(e => e.temperature).length >= 6, // Show dashed if enough data
+        lhPeaks: lhPeaks,
+        activePeak: latestPeak,
+
+        ovulationPred: {
+            mid: ovDateMid,
+            earliest: ovDateMin,
+            latest: ovDateMax,
+            confidence: ovConf
+        },
+        nextPeriodPred: {
+            mid: nextPerMid,
+            earliest: nextPerMin,
+            latest: nextPerMax,
+            confidence: nextConf
+        }
+    };
+}
+
+
+// --- 4. Multi-Month Prediction ---
+
+function predictFuture(
+    currentAnalysis: CyclePhaseState,
+    stats: CycleStatistics,
+    count: number = 6
+): FutureCycle[] {
     const predictions: FutureCycle[] = [];
-    let lastStart = currentStart;
 
-    // We process K future cycles
-    // Cycle 1 starts after "current cycle" ends. 
-    // Wait, "currentStart" is the start of the *active* cycle.
-    // So FutureCycle[0] is the *next* cycle.
+    // Start from the END of the current cycle
+    let lastPeriodStartMid = currentAnalysis.nextPeriodPred?.mid ||
+        addDays(currentAnalysis.startDate, stats.medianCycleLength);
 
-    // Initial estimation for *end* of current cycle / start of next
-    // S_next = S_current + MedianLength
-    let nextStartMean = new Date(currentStart).getTime() + stats.medianCycleLength * MILLIS_PER_DAY;
-
-    // Uncertainty accumulation
+    // Accumulate uncertainty
     let varianceSum = stats.stdDevCycleLength * stats.stdDevCycleLength;
 
+    // If current cycle is confirmed, uncertainty resets for next start?
+    // No, standard deviation applies to future cycles.
+
     for (let k = 0; k < count; k++) {
-        const startMeanDate = new Date(nextStartMean);
-        const startIso = startMeanDate.toISOString().split('T')[0];
-        const uncertainty = Math.sqrt(varianceSum); // SD of this predicted start date
+        const uncertainty = Math.sqrt(varianceSum);
 
-        // Prediction for THIS future cycle
-        // Ovulation = Start + (CycleLen - Luteal)
-        const cycleLen = stats.medianCycleLength;
-        const luteal = stats.medianLutealLength;
-        const ovulationDayIndex = cycleLen - luteal;
+        // Cycle Start
+        const cMid = lastPeriodStartMid;
+        const cLow = addDays(cMid, -Math.floor(uncertainty));
+        const cHigh = addDays(cMid, Math.ceil(uncertainty));
 
-        const ovuDate = addDays(startIso, ovulationDayIndex);
+        // Ovulation in this future cycle
+        // Ovu = Start + (CL - LL)
+        const ovuOffset = stats.medianCycleLength - stats.medianLutealLength;
+        const oMid = addDays(cMid, ovuOffset);
+        const oLow = addDays(oMid, -Math.floor(uncertainty)); // Uncertainty from start propagates
+        const oHigh = addDays(oMid, Math.ceil(uncertainty));
 
-        // Ranges (68% CI = +/- 1 SD)
-        const lowOffset = Math.floor(-1 * uncertainty);
-        const highOffset = Math.ceil(1 * uncertainty);
+        // Fertile Window
+        // [Ovu - 5, Ovu + 1]
+        const fStart = addDays(oMid, -5);
+        const fEnd = addDays(oMid, 1);
 
         predictions.push({
-            cycleStart: startIso,
-            cycleStartLow: addDays(startIso, lowOffset),
-            cycleStartHigh: addDays(startIso, highOffset),
-
-            ovulationDate: ovuDate,
-            ovulationLow: addDays(ovuDate, lowOffset), // Assuming Luteal Phase is stable, uncertainty comes from Cycle Start
-            ovulationHigh: addDays(ovuDate, highOffset),
-
-            fertileStart: addDays(ovuDate, -5),
-            fertileEnd: addDays(ovuDate, 1) // User request: +1 day after Ovulation
+            cycleStart: cMid,
+            cycleStartLow: cLow,
+            cycleStartHigh: cHigh,
+            ovulationDate: oMid,
+            ovulationLow: oLow,
+            ovulationHigh: oHigh,
+            fertileStart: fStart,
+            fertileEnd: fEnd
         });
 
-        // Step for next iteration
-        nextStartMean += stats.medianCycleLength * MILLIS_PER_DAY;
-        varianceSum += stats.stdDevCycleLength * stats.stdDevCycleLength; // Variance adds up
+        // Next Step
+        lastPeriodStartMid = addDays(lastPeriodStartMid, stats.medianCycleLength);
+        varianceSum += stats.stdDevCycleLength * stats.stdDevCycleLength;
     }
 
     return predictions;
 }
 
-// --- 3. Current Cycle Analysis (NFP State Machine) ---
 
-function analyzeCurrent(entries: Record<string, CycleEntry>, currentStart: string, stats: CycleStatistics, todayStr: string, periodLength: number = 5) {
-    // Filter entries for current cycle
-    const cycleEntries = Object.values(entries)
-        .filter(e => e.date >= currentStart)
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    let state: CycleState = 'PRE_FERTILE';
-    let confirmedOvuDate: string | undefined = undefined;
-    let coverline: number | undefined = undefined;
-    let coverlineProvisional = false;
-
-    // Find LH Peak
-    const lhPeakEntry = cycleEntries.find(e => e.lhTest === 'peak' || e.lhTest === 'positive');
-
-    // Find BBT Shift
-    // Need 6 low temps followed by 3 high temps
-    // Baseline = max of 6 low temps
-    // Threshold = Baseline + 0.2
-    // Shift = 3 consecutive temps >= Threshold
-
-    const validTemps = cycleEntries.filter(e => e.temperature && !e.excludeTemp);
-
-    for (let i = 6; i < validTemps.length - 2; i++) {
-        // Candidate for first high day is validTemps[i]
-        const prev6 = validTemps.slice(i - 6, i);
-        const next3 = validTemps.slice(i, i + 3); // Includes the 'shift' day + 2 following
-
-        if (prev6.length < 6) continue;
-
-        const baseline = Math.max(...prev6.map(e => e.temperature!));
-        const threshold = baseline + 0.2; // Strict NFP rule often 0.2, simplified here
-
-        const isShift = next3.every(e => e.temperature! >= baseline + 0.05) && next3[2].temperature! >= threshold; // NFP Rules are complex. 
-        // Simplified Rule for App: All 3 must be > baseline, and at least one > baseline + 0.2?
-        // Let's use: All 3 > baseline, and 3rd is >= baseline + 0.2
-
-        if (isShift) {
-            confirmedOvuDate = addDays(validTemps[i].date, -1); // Ovulation is day before shift
-            coverline = baseline;
-            state = 'OVU_CONFIRMED';
-            break;
-        }
-    }
-
-    // Provisional coverline: if not confirmed yet but have ≥3 temps, estimate from lowest temps
-    if (!coverline && validTemps.length >= 3) {
-        // Use max of the lowest 6 (or all if fewer) as a provisional coverline
-        const sorted = validTemps.map(e => e.temperature!).sort((a, b) => a - b);
-        const lowTemps = sorted.slice(0, Math.min(6, sorted.length));
-        coverline = Math.max(...lowTemps);
-        coverlineProvisional = true;
-    }
-
-    // Determine State if not confirmed
-    if (state !== 'OVU_CONFIRMED') {
-        if (lhPeakEntry) {
-            // Check if we are long past peak
-            const daysSincePeak = diffDays(todayStr, lhPeakEntry.date);
-            if (daysSincePeak > 4) state = 'ANOVULATORY_SUSPECTED';
-            else if (daysSincePeak > 0) state = 'POST_OVU_PENDING';
-            else state = 'PEAK_LH'; // Today is peak or before
-        } else {
-            // Check for Menstruation
-            const currentDay = diffDays(todayStr, currentStart) + 1;
-            if (currentDay <= periodLength) state = 'MENSTRUATION'; // Uses actual period length
-            // Check for fertile window based on stats
-            else {
-                const estOvu = stats.medianCycleLength - stats.medianLutealLength;
-                if (currentDay >= estOvu - 5 && currentDay <= estOvu) state = 'FERTILE_MID';
-            }
-        }
-    }
-
-    return {
-        startDate: currentStart,
-        day: diffDays(todayStr, currentStart) + 1,
-        state,
-        ovulationConfirmedDate: confirmedOvuDate,
-        coverline,
-        coverlineProvisional
-    };
-}
-
-
-// --- Main Engine Function ---
+// --- Main Engine ---
 
 export function runEngine(data: CycleData): EngineResult {
-    const { stats, cycleStarts } = analyzeHistory(data.entries);
-    const lastStart = cycleStarts.length > 0 ? cycleStarts[cycleStarts.length - 1] : toLocalISO();
     const todayStr = toLocalISO();
 
-    const currentAnalysis = analyzeCurrent(data.entries, lastStart, stats, todayStr, data.periodLength || 5);
-    const futureCycles = predictFuture(lastStart, stats);
+    // 1. Analyze History & Stats
+    const { stats, cycleStarts } = analyzeHistory(data.entries);
+    const lastStart = cycleStarts.length > 0 ? cycleStarts[cycleStarts.length - 1] : todayStr;
 
-    // --- Today's Prediction (Merged) ---
-    // If Ovulation is confirmed, we know exactly where we are (Luteal).
-    // If not, we use statistical prediction or LH signs.
+    // 2. Analyze Current Cycle (State Machine)
+    const currentAnalysis = analyzeCurrent(data.entries, lastStart, stats, todayStr);
 
+    // 3. Predict Future
+    const futureCycles = predictFuture(currentAnalysis, stats);
+
+    // 4. Today's Fertility/Status Calculation
     let todayPhase: DailyPrediction['phase'] = 'follicular';
     let isFertile = false;
-    let fertilityLevel: DailyPrediction['fertilityLevel'] = 0;
+    let fertilityLevel: 0 | 1 | 2 | 3 = 0;
 
     if (currentAnalysis.state === 'MENSTRUATION') {
         todayPhase = 'menstruation';
-    } else if (currentAnalysis.state === 'OVU_CONFIRMED') {
-        todayPhase = 'luteal';
-    } else {
-        // Check predictive fertile window (from futureCycles[0] logic relative to current)
-        const cycleLen = stats.medianCycleLength;
-        const luteal = stats.medianLutealLength;
-        const estOvuDay = cycleLen - luteal;
 
-        // Are we in fertile window?
-        // Window: [Ovu - 5, Ovu]
-        // But currentAnalysis.state might already be FERTILE_MID or PEAK
+    } else if (currentAnalysis.state === 'OVU_CONFIRMED') {
+        // Past ovulation
+        todayPhase = 'luteal';
+
+    } else {
+        // Pre-Ovu / Fertile
+        // Map State to Level
         if (currentAnalysis.state === 'PEAK_LH') {
             todayPhase = 'ovulatory';
             isFertile = true;
@@ -293,10 +425,21 @@ export function runEngine(data: CycleData): EngineResult {
             todayPhase = 'ovulatory';
             isFertile = true;
             fertilityLevel = 2;
-        } else if (currentAnalysis.day >= estOvuDay - 5 && currentAnalysis.day <= estOvuDay + 1) {
-            todayPhase = 'ovulatory';
-            isFertile = true;
-            fertilityLevel = 1; // Statistical assumption
+        } else if (currentAnalysis.state === 'POST_OVU_PENDING') {
+            todayPhase = 'ovulatory'; // Waiting for confirmation
+            isFertile = true; // Still potentially fertile window
+            fertilityLevel = 2;
+        } else {
+            // Statistical Window (Low Confidence Forecast)
+            if (currentAnalysis.ovulationPred) {
+                const oMid = currentAnalysis.ovulationPred.mid;
+                const dDiff = diffDays(todayStr, oMid);
+                if (dDiff >= -5 && dDiff <= 1) {
+                    todayPhase = 'ovulatory';
+                    isFertile = true;
+                    fertilityLevel = 1;
+                }
+            }
         }
     }
 
@@ -321,48 +464,28 @@ export function runEngine(data: CycleData): EngineResult {
     };
 }
 
-// Backward compatibility for existing UI components
+
+// --- Legacy Compatibility ---
+
 export function calculatePredictions(data: CycleData) {
     const engine = runEngine(data);
     const current = engine.currentCycle;
     const stats = engine.statistics;
 
-    // Map EngineResult to old PredictionResult interface for compatibility
-    // Or update UI to use engine result.
-    // Let's return a hybrid or mapped object to avoid breaking everything immediately.
-
-    // We need: nextPeriodStart, ovulationNext, fertileWindowStart, fertileWindowEnd...
-
-    // If confirmed, next period is Ovu + Luteal
-    let nextPeriod: Date;
-    let ovulation: Date;
-
-    if (current.ovulationConfirmedDate) {
-        ovulation = new Date(current.ovulationConfirmedDate);
-        nextPeriod = new Date(current.ovulationConfirmedDate);
-        nextPeriod.setDate(nextPeriod.getDate() + stats.medianLutealLength);
-    } else {
-        // Statistical
-        const start = new Date(current.startDate);
-        nextPeriod = new Date(start);
-        nextPeriod.setDate(nextPeriod.getDate() + stats.medianCycleLength);
-
-        ovulation = new Date(nextPeriod);
-        ovulation.setDate(ovulation.getDate() - stats.medianLutealLength);
-    }
+    const op = current.ovulationPred!;
+    const np = current.nextPeriodPred!;
 
     return {
-        nextPeriodStart: nextPeriod,
-        ovulationNext: ovulation,
-        fertileWindowStart: addDays(ovulation.toISOString().split('T')[0], -5), // string, but old typed Date? No, old typed Date.
-        fertileWindowEnd: ovulation,
+        nextPeriodStart: new Date(np.mid),
+        ovulationNext: new Date(op.mid),
+        fertileWindowStart: addDays(op.mid, -5),
+        fertileWindowEnd: new Date(op.mid), // Old UI expected Date logic?
 
         currentPhase: engine.predictions.today.phase,
         isOvulationConfirmed: !!current.ovulationConfirmedDate,
 
-        // Extras from Engine
         cycleDay: current.day,
         stats: stats,
-        engineResult: engine // Pass full engine result for new components
+        engineResult: engine
     };
 }

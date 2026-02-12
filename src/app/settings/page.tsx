@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { parseFemometerCSV } from '@/lib/importer';
 import { APP_VERSION, BUILD_DATE } from '@/lib/version';
@@ -33,15 +34,49 @@ export default function SettingsPage() {
     const [gistToken, setGistToken] = useState('');
     const [isSyncing, setIsSyncing] = useState(false);
     const [isRestoring, setIsRestoring] = useState(false);
-    const [localBackups, setLocalBackups] = useState<{ backup1: any; backup2: any; timestamp: string | null }>({ backup1: null, backup2: null, timestamp: null });
+
+    // Updated State for new Backup Format
+    const [localBackups, setLocalBackups] = useState<{
+        backup1: { data: any; timestamp: string } | null;
+        backup2: { data: any; timestamp: string } | null;
+    }>({ backup1: null, backup2: null });
+
     const [hasGistToken, setHasGistToken] = useState(false);
+
+    // App Lock State
+    const [isAppLockActive, setIsAppLockActive] = useState(false);
 
     useEffect(() => {
         const config = getGistConfig();
         setGistToken(config.token || '');
         setHasGistToken(!!config.token);
         setLocalBackups(getLocalBackups());
+
+        // Check App Lock
+        // Dynamically import to avoid server-side issues if any
+        import('@/lib/auth').then(mod => {
+            setIsAppLockActive(mod.isAppLockEnabled());
+        });
     }, []);
+
+    const handleToggleAppLock = async () => {
+        const auth = await import('@/lib/auth');
+        if (isAppLockActive) {
+            // Disable
+            auth.disableAppLock();
+            setIsAppLockActive(false);
+            toast.success('App Lock deaktiviert');
+        } else {
+            // Enable
+            const success = await auth.registerPasskey();
+            if (success) {
+                setIsAppLockActive(true);
+                toast.success('App Lock aktiviert (Face ID / Touch ID)');
+            } else {
+                toast.error('Konnte Biometrie nicht einrichten. Wird es von diesem Gerät unterstützt?');
+            }
+        }
+    };
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -150,8 +185,9 @@ export default function SettingsPage() {
     const handleRestoreLocalBackup = (which: 1 | 2) => {
         const backups = getLocalBackups();
         const backup = which === 1 ? backups.backup1 : backups.backup2;
-        if (backup) {
-            importData(JSON.stringify(backup));
+        // Updated to handle wrapped data structure
+        if (backup && backup.data) {
+            importData(JSON.stringify(backup.data));
             toast.success(`Lokales Backup ${which} wiederhergestellt!`);
         } else {
             toast.error('Kein Backup verfügbar');
@@ -206,6 +242,32 @@ export default function SettingsPage() {
                 </CardContent>
             </Card>
 
+            {/* Security Settings */}
+            <Card className="border-none shadow-sm bg-white">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Shield className="w-5 h-5" />
+                        Sicherheit
+                    </CardTitle>
+                    <CardDescription>Schütze die App vor Zugriffen.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center justify-between">
+                        <Label htmlFor="appLock" className="flex flex-col gap-1">
+                            <span>App Lock (Face ID / Touch ID)</span>
+                            <span className="font-normal text-xs text-muted-foreground">
+                                Beim Starten der App entsperren.
+                            </span>
+                        </Label>
+                        <Switch
+                            id="appLock"
+                            checked={isAppLockActive}
+                            onCheckedChange={() => handleToggleAppLock()}
+                        />
+                    </div>
+                </CardContent>
+            </Card>
+
             {/* Data Management */}
             <Card className="border-none shadow-sm bg-white">
                 <CardHeader>
@@ -234,18 +296,42 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Local Auto-Backup Restore */}
-                    {localBackups.timestamp && (
-                        <div className="border-t pt-4 space-y-2">
-                            <Label className="text-xs text-muted-foreground">
-                                Auto-Backup: {new Date(localBackups.timestamp).toLocaleString('de-DE')}
+                    {(localBackups.backup1 || localBackups.backup2) && (
+                        <div className="border-t pt-4 space-y-3">
+                            <Label className="text-xs text-muted-foreground block mb-2">
+                                Lokale Auto-Backups
                             </Label>
-                            <div className="grid grid-cols-2 gap-2">
-                                <Button variant="ghost" size="sm" onClick={() => handleRestoreLocalBackup(1)} disabled={!localBackups.backup1}>
-                                    Backup 1
-                                </Button>
-                                <Button variant="ghost" size="sm" onClick={() => handleRestoreLocalBackup(2)} disabled={!localBackups.backup2}>
-                                    Backup 2
-                                </Button>
+                            <div className="grid grid-cols-1 gap-2">
+                                {localBackups.backup1 && (
+                                    <div className="flex items-center justify-between text-sm p-2 bg-muted/30 rounded-md border">
+                                        <div className="flex flex-col">
+                                            <span className="font-medium">Backup 1 (Neuestes)</span>
+                                            <span className="text-xs text-muted-foreground">
+                                                {localBackups.backup1.timestamp === 'Legacy'
+                                                    ? 'Datum unbekannt'
+                                                    : new Date(localBackups.backup1.timestamp).toLocaleString('de-DE')}
+                                            </span>
+                                        </div>
+                                        <Button variant="ghost" size="sm" onClick={() => handleRestoreLocalBackup(1)}>
+                                            <RotateCcw className="w-3 h-3 mr-1" /> Laden
+                                        </Button>
+                                    </div>
+                                )}
+                                {localBackups.backup2 && (
+                                    <div className="flex items-center justify-between text-sm p-2 bg-muted/30 rounded-md border">
+                                        <div className="flex flex-col">
+                                            <span className="font-medium">Backup 2 (Älter)</span>
+                                            <span className="text-xs text-muted-foreground">
+                                                {localBackups.backup2.timestamp === 'Legacy'
+                                                    ? 'Datum unbekannt'
+                                                    : new Date(localBackups.backup2.timestamp).toLocaleString('de-DE')}
+                                            </span>
+                                        </div>
+                                        <Button variant="ghost" size="sm" onClick={() => handleRestoreLocalBackup(2)}>
+                                            <RotateCcw className="w-3 h-3 mr-1" /> Laden
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
