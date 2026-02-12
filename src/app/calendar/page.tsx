@@ -56,7 +56,6 @@ export default function CalendarPage() {
         }
     }, []);
 
-    // Force re-render engine when data changes
     const engine = useMemo(() => isLoaded ? runEngine(data) : null, [data, isLoaded]);
     const historyCycles = useMemo(() => isLoaded ? groupCycles(data.entries) : [], [data, isLoaded]);
 
@@ -69,7 +68,6 @@ export default function CalendarPage() {
     const safeSelectedDateStr = date ? toLocalISO(date) : '';
     const selectedEntry = safeSelectedDateStr ? data.entries[safeSelectedDateStr] : null;
 
-    // --- Modifiers Logic ---
     const modifiers = useMemo(() => {
         if (!engine) return {};
 
@@ -140,7 +138,6 @@ export default function CalendarPage() {
         return 'translate-x-0 opacity-100';
     };
 
-    // --- Detail View Components ---
     const DetailItem = ({ icon: Icon, label, value, color }: any) => (
         <div className="flex flex-col items-center bg-white p-2.5 rounded-xl border shadow-sm">
             <Icon className={`w-5 h-5 mb-1 ${color}`} />
@@ -148,6 +145,10 @@ export default function CalendarPage() {
             <span className="text-[10px] text-muted-foreground">{label}</span>
         </div>
     );
+
+    const periodMap: Record<string, string> = { light: 'Leicht', medium: 'Mittel', heavy: 'Stark', spotting: 'Schmier' };
+    const painMap: Record<string, string> = { light: 'Leicht', medium: 'Mittel', strong: 'Stark', extreme: 'Extrem' };
+    const cervixMap: Record<string, string> = { dry: 'Trocken', sticky: 'Klebrig', creamy: 'Cremig', watery: 'Wässrig', eggwhite: 'Spinnbar' };
 
     return (
         <div className="flex flex-col h-full bg-background overflow-y-auto">
@@ -166,7 +167,7 @@ export default function CalendarPage() {
                             onMonthChange={setMonth}
                             onSelect={handleDaySelect}
                             locale={de}
-                            className="w-full border rounded-xl shadow-sm bg-white [--cell-size:38px]"
+                            className="w-full h-full [--cell-size:clamp(28px,8vw,38px)] bg-transparent border-none shadow-none"
                             modifiers={modifiers}
                             modifiersClassNames={{
                                 period: "bg-rose-100 text-rose-700 font-semibold rounded-md",
@@ -212,13 +213,13 @@ export default function CalendarPage() {
                             <DetailItem
                                 icon={Droplet}
                                 label="Blutung"
-                                value={selectedEntry.period === 'spotting' ? 'Schmier' : (selectedEntry.period || '–')}
+                                value={selectedEntry.period === 'spotting' ? 'Schmier' : (selectedEntry.period ? (periodMap[selectedEntry.period] || selectedEntry.period) : '–')}
                                 color="text-blue-500"
                             />
                             <DetailItem
                                 icon={Zap}
                                 label="Schmerz"
-                                value={selectedEntry.pain ? selectedEntry.pain : '–'}
+                                value={selectedEntry.pain ? (painMap[selectedEntry.pain] || selectedEntry.pain) : '–'}
                                 color="text-orange-500"
                             />
                             <DetailItem
@@ -237,9 +238,16 @@ export default function CalendarPage() {
                                     {selectedEntry.symptoms?.map(s => (
                                         <span key={s} className="px-2 py-1 bg-slate-100 text-slate-700 text-xs rounded-md border border-slate-200">{s}</span>
                                     ))}
-                                    {selectedEntry.mood?.map(m => (
-                                        <span key={m} className="px-2 py-1 bg-indigo-50 text-indigo-700 text-xs rounded-md border border-indigo-100 capitalize">{m}</span>
-                                    ))}
+                                    {selectedEntry.mood?.map(m => {
+                                        const moodLabels: Record<string, string> = {
+                                            happy: '😊 Gut', energetic: '⚡ Energisch', tired: '😴 Müde',
+                                            sad: '😢 Traurig', anxious: '😰 Ängstlich', irritated: '😤 Gereizt',
+                                            moodswings: '🎢 Schwankungen'
+                                        };
+                                        return (
+                                            <span key={m} className="px-2 py-1 bg-indigo-50 text-indigo-700 text-xs rounded-md border border-indigo-100">{moodLabels[m] || m}</span>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         ) : null}
@@ -249,13 +257,15 @@ export default function CalendarPage() {
                             {(selectedEntry.lhTest) && (
                                 <div className="bg-white p-3 rounded-xl border shadow-sm flex items-center justify-between">
                                     <span className="text-xs text-muted-foreground">LH Test</span>
-                                    <span className="text-sm font-semibold text-purple-600 uppercase">{selectedEntry.lhTest}</span>
+                                    <span className="text-sm font-semibold text-purple-600 uppercase">{selectedEntry.lhTest === 'peak' ? 'PEAK' : selectedEntry.lhTest === 'positive' ? 'Positiv' : 'Negativ'}</span>
                                 </div>
                             )}
                             {(selectedEntry.cervix) && (
                                 <div className="bg-white p-3 rounded-xl border shadow-sm flex items-center justify-between">
                                     <span className="text-xs text-muted-foreground">Zervix</span>
-                                    <span className="text-sm font-semibold text-teal-600 capitalize">{selectedEntry.cervix}</span>
+                                    <span className="text-sm font-semibold text-teal-600">
+                                        {cervixMap[selectedEntry.cervix] || selectedEntry.cervix}
+                                    </span>
                                 </div>
                             )}
                         </div>

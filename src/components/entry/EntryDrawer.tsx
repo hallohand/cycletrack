@@ -89,6 +89,7 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
         { key: 'sad', label: '😢 Traurig' },
         { key: 'anxious', label: '😰 Ängstlich' },
         { key: 'irritated', label: '😤 Gereizt' },
+        { key: 'moodswings', label: '🎢 Schwankungen' },
     ];
 
     return (

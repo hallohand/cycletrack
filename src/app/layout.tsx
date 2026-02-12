@@ -20,6 +20,8 @@ import UpdateNotification from '@/components/UpdateNotification';
 
 import { AppLock } from "@/components/guard/AppLock";
 
+import { CycleProvider } from '@/components/CycleContext';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -32,11 +34,13 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
       </head>
       <body className={"h-full overflow-y-auto overscroll-none touch-pan-x touch-pan-y"}>
-        <AppLock>
-          <AppLayout>{children}</AppLayout>
-        </AppLock>
-        <Toaster />
-        <UpdateNotification />
+        <CycleProvider>
+          <AppLock>
+            <AppLayout>{children}</AppLayout>
+          </AppLock>
+          <Toaster />
+          <UpdateNotification />
+        </CycleProvider>
       </body>
     </html>
   );

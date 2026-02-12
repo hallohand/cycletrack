@@ -3,7 +3,7 @@ export type PeriodPain = 'light' | 'medium' | 'strong' | 'extreme';
 export type CervixType = 'dry' | 'sticky' | 'creamy' | 'watery' | 'eggwhite';
 export type LHTestResult = 'negative' | 'positive' | 'peak';
 export type SexType = 'protected' | 'unprotected' | 'none';
-export type MoodType = 'happy' | 'sad' | 'anxious' | 'irritated' | 'energetic' | 'tired';
+export type MoodType = 'happy' | 'sad' | 'anxious' | 'irritated' | 'energetic' | 'tired' | 'moodswings';
 
 // NFP State Machine States
 export type CycleState =
