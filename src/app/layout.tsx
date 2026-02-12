@@ -13,6 +13,11 @@ export const metadata: Metadata = {
     userScalable: false, // Prevent zooming usually for PWA feel
   },
   themeColor: '#FF6B9D',
+  icons: {
+    icon: '/icon-192.png',
+    shortcut: '/icon-192.png',
+    apple: '/apple-touch-icon.png',
+  },
 };
 
 import { Toaster } from 'sonner';
