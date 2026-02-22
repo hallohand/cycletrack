@@ -89,7 +89,7 @@ export function AiSummaryCard() {
     if (!summary && !isGenerating) return null;
 
     return (
-        <div className="bg-gradient-to-br from-rose-50 to-amber-50 rounded-2xl p-4 relative overflow-hidden">
+        <div className="bg-gradient-to-br from-rose-50 to-amber-50 rounded-2xl p-4 relative">
             <div className="flex items-center gap-1.5 mb-2">
                 <Sparkles className="w-4 h-4 text-rose-400" />
                 <span className="text-xs font-semibold text-rose-600">Dein aktueller Status</span>

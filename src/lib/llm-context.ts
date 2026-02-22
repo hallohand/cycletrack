@@ -142,14 +142,12 @@ export function buildSystemPrompt(data: CycleData, engine: EngineResult): string
     const context = buildCycleContext(data, engine);
 
     const roleDefinition = `Du bist eine einfühlsame Beraterin für Zyklusgesundheit und Schwangerschaftsplanung in der App CycleTrack. Du analysierst Zyklusdaten und gibst hilfreiche, evidenzbasierte Tipps zu Fruchtbarkeit, Eisprung-Timing, Schwangerschaftschancen, und allgemeiner Zyklusgesundheit.
-Du bist KEIN Arzt — weise bei medizinischen Fragen darauf hin, dass eine ärztliche Beratung sinnvoll wäre.
 Antworte auf Deutsch, kurz und verständlich. Verwende Emojis sparsam.`;
 
     const dataContext = `Hier sind die aktuellen Zyklusdaten der Nutzerin:
 ${JSON.stringify(context, null, 2)}`;
 
     const instructions = `Beziehe dich auf die Daten. Nenne konkrete Zahlen wenn hilfreich.
-Wenn die Nutzerin nach medizinischer Beratung fragt, empfehle einen Arztbesuch.
 Halte Antworten unter 200 Wörtern. Formatiere mit kurzen Absätzen.`;
 
     return `${roleDefinition}\n\n${dataContext}\n\n${instructions}`;
