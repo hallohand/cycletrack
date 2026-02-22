@@ -2,11 +2,19 @@
   "name": "CycleTrack - Zyklus Tracker",
   "short_name": "CycleTrack",
   "description": "Privater Zyklus-Tracker mit Temperaturkurve und Fruchtbarkeitsberechnung",
+  "id": "/cycletrack/",
   "start_url": "/cycletrack/",
+  "scope": "/cycletrack/",
   "display": "standalone",
   "background_color": "#FFF5F7",
   "theme_color": "#FF6B9D",
   "orientation": "portrait",
+  "prefer_related_applications": false,
+  "categories": [
+    "health",
+    "lifestyle",
+    "medical"
+  ],
   "icons": [
     {
       "src": "icon-192.png",
@@ -19,6 +27,22 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshot-chart.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Temperaturkurve mit Zyklusübersicht"
+    },
+    {
+      "src": "screenshot-history.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Zyklusverlauf mit Statistiken"
     }
   ]
 }
