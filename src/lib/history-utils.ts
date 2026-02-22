@@ -72,7 +72,7 @@ export function groupCycles(entriesMap: Record<string, CycleEntry>): CycleGroup[
             }
         }
 
-        const periodLength = currentEntries.filter(e => e.period).length;
+        const periodLength = currentEntries.filter(e => e.period && e.period !== 'spotting').length;
 
         // Find Ovu Day Index
         let ovuDayIndex = -1;

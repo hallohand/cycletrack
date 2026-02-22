@@ -40,7 +40,7 @@ export default function HistoryPage() {
     const futureCycles = engine?.predictions.futureCycles || [];
 
     return (
-        <div className="flex flex-col h-[calc(100vh-80px)] px-4 pt-4 overflow-hidden">
+        <div className="flex flex-col h-[calc(100dvh-100px)] px-4 pt-4 overflow-hidden">
             {/* Header */}
             <div className="flex justify-between items-center mb-3 shrink-0">
                 <h2 className="text-xl font-bold tracking-tight">Periode & Ovulation</h2>
@@ -68,8 +68,8 @@ export default function HistoryPage() {
                     <button
                         onClick={() => setTab('history')}
                         className={`flex-1 py-1.5 text-sm font-medium rounded-full transition-all ${tab === 'history'
-                                ? 'bg-rose-400 text-white shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
+                            ? 'bg-rose-400 text-white shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
                             }`}
                     >
                         Verlauf
@@ -77,8 +77,8 @@ export default function HistoryPage() {
                     <button
                         onClick={() => setTab('forecast')}
                         className={`flex-1 py-1.5 text-sm font-medium rounded-full transition-all ${tab === 'forecast'
-                                ? 'bg-rose-400 text-white shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
+                            ? 'bg-rose-400 text-white shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
                             }`}
                     >
                         Prognose
