@@ -1,7 +1,7 @@
 'use client';
 import { useCycleData } from '@/hooks/useCycleData';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, ReferenceLine } from 'recharts';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { runEngine } from '@/lib/cycle-calculations';
 
 import { groupCycles } from '@/lib/history-utils'; // Need to import this
@@ -11,6 +11,7 @@ export default function ChartPage() {
     const [chartData, setChartData] = useState<any[]>([]);
     const [phaseAreas, setPhaseAreas] = useState<any[]>([]);
 
+    const scrollRef = useRef<HTMLDivElement>(null);
 
     // Run engine to get coverline
     const engine = useMemo(() => {
@@ -117,6 +118,28 @@ export default function ChartPage() {
             .map(d => d.temp as number);
     }, [chartData, engine]);
 
+    // Auto-scroll to the right (newest data) on load
+    useEffect(() => {
+        if (chartData.length > 0 && scrollRef.current) {
+            setTimeout(() => {
+                if (scrollRef.current) {
+                    scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+                }
+            }, 100);
+        }
+    }, [chartData]);
+
+    // SSR-safe window width
+    const [windowWidth, setWindowWidth] = useState(375);
+    useEffect(() => {
+        setWindowWidth(window.innerWidth);
+        const handleResize = () => setWindowWidth(window.innerWidth);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const chartWidth = Math.max(windowWidth, chartData.length * 40);
+
     return (
         <div className="flex flex-col h-[calc(100vh-160px)] px-2">
             {/* Title */}
@@ -126,130 +149,134 @@ export default function ChartPage() {
             </div>
 
             {/* Chart */}
-            <div className="flex-1 min-h-0 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>
-                        <defs>
-                            <linearGradient id="periodGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#fca5a5" stopOpacity={0.3} />
-                                <stop offset="100%" stopColor="#fca5a5" stopOpacity={0} />
-                            </linearGradient>
-                            <linearGradient id="fertileGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#93c5fd" stopOpacity={0.3} />
-                                <stop offset="100%" stopColor="#93c5fd" stopOpacity={0} />
-                            </linearGradient>
-                            <linearGradient id="purpleGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#d8b4fe" stopOpacity={0.2} />
-                                <stop offset="100%" stopColor="#d8b4fe" stopOpacity={0} />
-                            </linearGradient>
-                        </defs>
+            <div className="flex-1 min-h-0 w-full overflow-hidden">
+                <div ref={scrollRef} className="h-full w-full overflow-x-auto overflow-y-hidden scrollbar-hide">
+                    <div style={{ width: chartWidth, height: '100%' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>
+                                <defs>
+                                    <linearGradient id="periodGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#fca5a5" stopOpacity={0.3} />
+                                        <stop offset="100%" stopColor="#fca5a5" stopOpacity={0} />
+                                    </linearGradient>
+                                    <linearGradient id="fertileGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#93c5fd" stopOpacity={0.3} />
+                                        <stop offset="100%" stopColor="#93c5fd" stopOpacity={0} />
+                                    </linearGradient>
+                                    <linearGradient id="purpleGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#d8b4fe" stopOpacity={0.2} />
+                                        <stop offset="100%" stopColor="#d8b4fe" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
 
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
 
-                        <XAxis
-                            dataKey="index"
-                            tickLine={false}
-                            axisLine={false}
-                            tick={(props) => {
-                                const payload = props.payload;
-                                const item = chartData[payload.value];
-                                if (!item) return null;
-                                return <text x={props.x} y={Number(props.y) + 12} textAnchor="middle" fill="var(--muted-foreground)" fontSize={9}>{item.displayDate}</text>
-                            }}
-                            padding={{ left: 5, right: 5 }}
-                            type="number"
-                            domain={['dataMin', 'dataMax']}
-                        />
+                                <XAxis
+                                    dataKey="index"
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tick={(props) => {
+                                        const payload = props.payload;
+                                        const item = chartData[payload.value];
+                                        if (!item) return null;
+                                        return <text x={props.x} y={Number(props.y) + 12} textAnchor="middle" fill="var(--muted-foreground)" fontSize={9}>{item.displayDate}</text>
+                                    }}
+                                    padding={{ left: 5, right: 5 }}
+                                    type="number"
+                                    domain={['dataMin', 'dataMax']}
+                                />
 
-                        <YAxis
-                            domain={[35.5, 37.5]}
-                            tickLine={false}
-                            axisLine={false}
-                            tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }}
-                            width={30}
-                            scale="linear"
-                            type="number"
-                            allowDataOverflow={true}
-                        />
+                                <YAxis
+                                    domain={[35.5, 37.5]}
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }}
+                                    width={30}
+                                    scale="linear"
+                                    type="number"
+                                    allowDataOverflow={true}
+                                />
 
-                        <Tooltip
-                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                            labelStyle={{ color: 'var(--muted-foreground)' }}
-                            labelFormatter={(value) => chartData[value]?.displayDate}
-                            formatter={(value: any, name: any) => {
-                                if (name === 'temp') return [`${value}°C`, 'Temp'];
-                                return [value, name];
-                            }}
-                        />
+                                <Tooltip
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                    labelStyle={{ color: 'var(--muted-foreground)' }}
+                                    labelFormatter={(value) => chartData[value]?.displayDate}
+                                    formatter={(value: any, name: any) => {
+                                        if (name === 'temp') return [`${value}°C`, 'Temp'];
+                                        return [value, name];
+                                    }}
+                                />
 
-                        {/* Phase Backgrounds */}
-                        {phaseAreas.map((area, idx) => (
-                            <ReferenceArea
-                                key={idx}
-                                x1={area.x1}
-                                x2={area.x2}
-                                y1={37.5}
-                                y2={35.5}
-                                fill={`url(#${area.type === 'period' ? 'periodGradient' : area.type === 'fertile' ? 'fertileGradient' : 'purpleGradient'})`}
-                                fillOpacity={1}
-                                label={{
-                                    value: area.type === 'purple' ? '' : area.label,
-                                    position: 'insideBottom',
-                                    fill: area.type === 'period' ? '#ef4444' : area.type === 'fertile' ? '#3b82f6' : '#a855f7',
-                                    fontSize: 9,
-                                    dy: 8
-                                }}
-                            />
-                        ))}
-
-                        {/* Ovulation Markers */}
-                        {chartData.map((item, idx) => {
-                            if (item.isOvulation) {
-                                return (
-                                    <ReferenceLine
-                                        key={`ovu-${idx}`}
-                                        x={item.index}
-                                        stroke="#eab308"
-                                        strokeDasharray="3 3"
-                                        label={{ value: '🌼', position: 'top', fill: '#eab308', fontSize: 11 }}
+                                {/* Phase Backgrounds */}
+                                {phaseAreas.map((area, idx) => (
+                                    <ReferenceArea
+                                        key={idx}
+                                        x1={area.x1}
+                                        x2={area.x2}
+                                        y1={37.5}
+                                        y2={35.5}
+                                        fill={`url(#${area.type === 'period' ? 'periodGradient' : area.type === 'fertile' ? 'fertileGradient' : 'purpleGradient'})`}
+                                        fillOpacity={1}
+                                        label={{
+                                            value: area.type === 'purple' ? '' : area.label,
+                                            position: 'insideBottom',
+                                            fill: area.type === 'period' ? '#ef4444' : area.type === 'fertile' ? '#3b82f6' : '#a855f7',
+                                            fontSize: 9,
+                                            dy: 8
+                                        }}
                                     />
-                                );
-                            }
-                            return null;
-                        })}
+                                ))}
 
-                        {/* Coverline */}
-                        {engine?.currentCycle.coverline && (
-                            <ReferenceLine
-                                y={engine.currentCycle.coverline}
-                                stroke={engine.currentCycle.coverlineProvisional ? '#9ca3af' : '#ef4444'}
-                                strokeDasharray={engine.currentCycle.coverlineProvisional ? '6 4' : '0'}
-                                strokeWidth={engine.currentCycle.coverlineProvisional ? 1.5 : 2}
-                                label={{
-                                    value: `${engine.currentCycle.coverline.toFixed(2)}°`,
-                                    position: 'right',
-                                    fill: engine.currentCycle.coverlineProvisional ? '#9ca3af' : '#ef4444',
-                                    fontSize: 9,
-                                }}
-                            />
-                        )}
+                                {/* Ovulation Markers */}
+                                {chartData.map((item, idx) => {
+                                    if (item.isOvulation) {
+                                        return (
+                                            <ReferenceLine
+                                                key={`ovu-${idx}`}
+                                                x={item.index}
+                                                stroke="#eab308"
+                                                strokeDasharray="3 3"
+                                                label={{ value: '🌼', position: 'top', fill: '#eab308', fontSize: 11 }}
+                                            />
+                                        );
+                                    }
+                                    return null;
+                                })}
 
-                        <Line
-                            type="monotone"
-                            dataKey="temp"
-                            stroke="var(--primary)"
-                            strokeWidth={2.5}
-                            dot={(props: any) => {
-                                const { cx, cy, payload } = props;
-                                if (payload.sex) return <circle cx={cx} cy={cy} r={3} fill="var(--rose-500)" stroke="pink" strokeWidth={1.5} />;
-                                if (payload.lh === 'peak' || payload.lh === 'positive') return <circle cx={cx} cy={cy} r={3} fill="var(--purple-500)" stroke="white" strokeWidth={1.5} />;
-                                if (payload.isOvulation) return <circle cx={cx} cy={cy} r={4} fill="#eab308" stroke="white" strokeWidth={1.5} />;
-                                return <circle cx={cx} cy={cy} r={2} fill="var(--primary)" stroke="none" />;
-                            }}
-                            connectNulls
-                        />
-                    </LineChart>
-                </ResponsiveContainer>
+                                {/* Coverline */}
+                                {engine?.currentCycle.coverline && (
+                                    <ReferenceLine
+                                        y={engine.currentCycle.coverline}
+                                        stroke={engine.currentCycle.coverlineProvisional ? '#9ca3af' : '#ef4444'}
+                                        strokeDasharray={engine.currentCycle.coverlineProvisional ? '6 4' : '0'}
+                                        strokeWidth={engine.currentCycle.coverlineProvisional ? 1.5 : 2}
+                                        label={{
+                                            value: `${engine.currentCycle.coverline.toFixed(2)}°`,
+                                            position: 'right',
+                                            fill: engine.currentCycle.coverlineProvisional ? '#9ca3af' : '#ef4444',
+                                            fontSize: 9,
+                                        }}
+                                    />
+                                )}
+
+                                <Line
+                                    type="monotone"
+                                    dataKey="temp"
+                                    stroke="var(--primary)"
+                                    strokeWidth={2.5}
+                                    dot={(props: any) => {
+                                        const { cx, cy, payload } = props;
+                                        if (payload.sex) return <circle cx={cx} cy={cy} r={3} fill="var(--rose-500)" stroke="pink" strokeWidth={1.5} />;
+                                        if (payload.lh === 'peak' || payload.lh === 'positive') return <circle cx={cx} cy={cy} r={3} fill="var(--purple-500)" stroke="white" strokeWidth={1.5} />;
+                                        if (payload.isOvulation) return <circle cx={cx} cy={cy} r={4} fill="#eab308" stroke="white" strokeWidth={1.5} />;
+                                        return <circle cx={cx} cy={cy} r={2} fill="var(--primary)" stroke="none" />;
+                                    }}
+                                    connectNulls
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
             </div>
 
             {/* Zyklusübersicht */}
