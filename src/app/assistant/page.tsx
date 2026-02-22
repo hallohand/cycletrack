@@ -25,6 +25,62 @@ interface DisplayMessage {
     isStreaming?: boolean;
 }
 
+/** Lightweight markdown renderer for chat messages */
+function renderMarkdown(text: string): React.ReactNode {
+    // Split into lines for list handling
+    const lines = text.split('\n');
+    const elements: React.ReactNode[] = [];
+
+    lines.forEach((line, lineIdx) => {
+        // Bullet list items
+        const listMatch = line.match(/^[\-\*]\s+(.+)/);
+        if (listMatch) {
+            elements.push(
+                <div key={lineIdx} className="flex gap-1.5 ml-1">
+                    <span className="shrink-0">•</span>
+                    <span>{formatInline(listMatch[1])}</span>
+                </div>
+            );
+            return;
+        }
+
+        // Empty line = paragraph break
+        if (line.trim() === '') {
+            elements.push(<div key={lineIdx} className="h-2" />);
+            return;
+        }
+
+        // Normal text with inline formatting
+        elements.push(
+            <div key={lineIdx}>{formatInline(line)}</div>
+        );
+    });
+
+    return <>{elements}</>;
+}
+
+/** Format inline markdown: **bold**, *italic*, `code` */
+function formatInline(text: string): React.ReactNode {
+    // Split by markdown patterns, preserve delimiters
+    const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/);
+
+    return parts.map((part, i) => {
+        // **bold**
+        if (part.startsWith('**') && part.endsWith('**')) {
+            return <strong key={i} className="font-semibold">{part.slice(2, -2)}</strong>;
+        }
+        // *italic*
+        if (part.startsWith('*') && part.endsWith('*')) {
+            return <em key={i}>{part.slice(1, -1)}</em>;
+        }
+        // `code`
+        if (part.startsWith('`') && part.endsWith('`')) {
+            return <code key={i} className="bg-black/10 px-1 rounded text-xs">{part.slice(1, -1)}</code>;
+        }
+        return part;
+    });
+}
+
 export default function AssistantPage() {
     const { data, isLoaded } = useCycleData();
     const [messages, setMessages] = useState<DisplayMessage[]>(() => {
@@ -269,12 +325,12 @@ export default function AssistantPage() {
                         className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                         <div
-                            className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${msg.role === 'user'
+                            className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed ${msg.role === 'user'
                                 ? 'bg-rose-400 text-white rounded-br-md'
                                 : 'bg-muted text-foreground rounded-bl-md'
                                 }`}
                         >
-                            {msg.text}
+                            {msg.role === 'assistant' ? renderMarkdown(msg.text) : msg.text}
                             {msg.isStreaming && (
                                 <span className="inline-block w-1.5 h-4 bg-rose-400 ml-0.5 animate-pulse rounded-full" />
                             )}
@@ -309,7 +365,7 @@ export default function AssistantPage() {
                         onChange={(e) => setInput(e.target.value)}
                         placeholder="Frage stellen..."
                         disabled={isLoading}
-                        className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                        className="flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
                     />
                     <button
                         type="submit"
