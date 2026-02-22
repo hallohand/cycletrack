@@ -4,10 +4,12 @@ import { useCycleData } from '@/hooks/useCycleData';
 import { runEngine } from '@/lib/cycle-calculations';
 import { streamChat, getApiKey, ChatMessage } from '@/lib/gemini-client';
 import { buildSystemPrompt } from '@/lib/llm-context';
-import { Send, Sparkles, AlertTriangle, Settings, Trash2 } from 'lucide-react';
+import { updateMemoryAfterChat, getMemory, setMemory } from '@/lib/ai-memory';
+import { Send, Sparkles, AlertTriangle, Settings, Trash2, BookOpen, X } from 'lucide-react';
 import Link from 'next/link';
 
 const CHAT_STORAGE_KEY = 'cycletrack_ai_chat';
+const SLIDING_WINDOW = 6; // Send only last N messages to API
 
 const QUICK_ACTIONS = [
     { label: '💬 Wie ist mein Zyklus?', prompt: 'Wie ist mein aktueller Zyklusstatus? Gib mir eine Zusammenfassung.' },
@@ -37,6 +39,8 @@ export default function AssistantPage() {
     const [showPrivacyNotice, setShowPrivacyNotice] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const [showMemory, setShowMemory] = useState(false);
+    const [memoryText, setMemoryText] = useState('');
 
     const apiKey = useMemo(() => getApiKey(), []);
 
@@ -84,14 +88,15 @@ export default function AssistantPage() {
         setInput('');
         setIsLoading(true);
 
-        // Build chat history for API
-        const chatHistory: ChatMessage[] = [
+        // Build chat history for API — sliding window of last N messages
+        const allMessages = [
             ...messages.filter(m => !m.isStreaming).map(m => ({
                 role: m.role === 'user' ? 'user' as const : 'model' as const,
                 text: m.text,
             })),
             { role: 'user' as const, text: text.trim() },
         ];
+        const chatHistory: ChatMessage[] = allMessages.slice(-SLIDING_WINDOW);
 
         let fullText = '';
 
@@ -114,6 +119,16 @@ export default function AssistantPage() {
                     return updated;
                 });
                 setIsLoading(false);
+
+                // Extract facts for memory (async, non-blocking)
+                const recentForMemory = [
+                    ...messages.filter(m => !m.isStreaming).slice(-4).map(m => ({
+                        role: m.role, text: m.text,
+                    })),
+                    { role: 'user', text: text.trim() },
+                    { role: 'assistant', text: fullText },
+                ];
+                updateMemoryAfterChat(recentForMemory).catch(() => { });
             },
             (error) => {
                 setMessages(prev => {
@@ -200,6 +215,17 @@ export default function AssistantPage() {
         localStorage.removeItem(CHAT_STORAGE_KEY);
     };
 
+    const openMemory = () => {
+        setMemoryText(getMemory() || '(Noch keine Einträge)');
+        setShowMemory(true);
+    };
+
+    const saveMemory = () => {
+        const text = memoryText === '(Noch keine Einträge)' ? '' : memoryText;
+        setMemory(text);
+        setShowMemory(false);
+    };
+
     return (
         <div className="flex flex-col h-[calc(100dvh-200px)] overflow-hidden">
             {/* Header */}
@@ -209,11 +235,16 @@ export default function AssistantPage() {
                         <Sparkles className="w-5 h-5 text-rose-400" />
                         <h2 className="text-base font-bold">Zyklusassistent</h2>
                     </div>
-                    {messages.length > 0 && (
-                        <button onClick={clearChat} className="text-muted-foreground hover:text-foreground p-1">
-                            <Trash2 className="w-4 h-4" />
+                    <div className="flex items-center gap-1">
+                        <button onClick={openMemory} className="text-muted-foreground hover:text-foreground p-1" title="Gedächtnis">
+                            <BookOpen className="w-4 h-4" />
                         </button>
-                    )}
+                        {messages.length > 0 && (
+                            <button onClick={clearChat} className="text-muted-foreground hover:text-foreground p-1" title="Chat löschen">
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        )}
+                    </div>
                 </div>
                 {engine && (
                     <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -289,6 +320,42 @@ export default function AssistantPage() {
                     </button>
                 </div>
             </form>
+
+            {/* Memory Viewer Modal */}
+            {showMemory && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+                    <div className="bg-background w-full max-w-md rounded-t-2xl p-4 max-h-[80vh] flex flex-col animate-in slide-in-from-bottom duration-200">
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                                <BookOpen className="w-4 h-4 text-rose-400" />
+                                <h3 className="text-sm font-bold">Patientenakte</h3>
+                            </div>
+                            <button onClick={() => setShowMemory(false)} className="p-1">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <textarea
+                            value={memoryText}
+                            onChange={(e) => setMemoryText(e.target.value)}
+                            className="flex-1 min-h-[200px] text-xs font-mono bg-muted rounded-xl p-3 outline-none resize-none"
+                        />
+                        <div className="flex gap-2 mt-3">
+                            <button
+                                onClick={saveMemory}
+                                className="flex-1 px-3 py-2 bg-rose-400 text-white rounded-full text-sm font-medium hover:bg-rose-500 transition-colors"
+                            >
+                                Speichern
+                            </button>
+                            <button
+                                onClick={() => setShowMemory(false)}
+                                className="px-3 py-2 bg-muted text-muted-foreground rounded-full text-sm font-medium"
+                            >
+                                Abbrechen
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

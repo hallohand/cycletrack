@@ -3,6 +3,7 @@
 
 import { CycleData, EngineResult } from '@/lib/types';
 import { CycleGroup, groupCycles } from '@/lib/history-utils';
+import { getMemoryPromptSection } from '@/lib/ai-memory';
 
 interface CycleContext {
     heute: string;
@@ -147,10 +148,12 @@ Antworte auf Deutsch, kurz und verständlich. Verwende Emojis sparsam.`;
     const dataContext = `Hier sind die aktuellen Zyklusdaten der Nutzerin:
 ${JSON.stringify(context, null, 2)}`;
 
-    const instructions = `Beziehe dich auf die Daten. Nenne konkrete Zahlen wenn hilfreich.
+    const instructions = `Beziehe dich auf die Daten und die Patientenakte. Nenne konkrete Zahlen wenn hilfreich.
 Halte Antworten unter 200 Wörtern. Formatiere mit kurzen Absätzen.`;
 
-    return `${roleDefinition}\n\n${dataContext}\n\n${instructions}`;
+    const memory = getMemoryPromptSection();
+
+    return `${roleDefinition}\n\n${dataContext}${memory}\n\n${instructions}`;
 }
 
 export function buildSummaryPrompt(): string {
