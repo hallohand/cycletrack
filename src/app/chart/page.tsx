@@ -1,8 +1,7 @@
 'use client';
 import { useCycleData } from '@/hooks/useCycleData';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, ReferenceLine } from 'recharts';
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { runEngine } from '@/lib/cycle-calculations';
 
 import { groupCycles } from '@/lib/history-utils'; // Need to import this
@@ -12,7 +11,6 @@ export default function ChartPage() {
     const [chartData, setChartData] = useState<any[]>([]);
     const [phaseAreas, setPhaseAreas] = useState<any[]>([]);
 
-    const scrollRef = useRef<HTMLDivElement>(null);
 
     // Run engine to get coverline
     const engine = useMemo(() => {
@@ -108,183 +106,160 @@ export default function ChartPage() {
 
     }, [data, isLoaded]);
 
-    // Auto-scroll to the right (newest data) on load
-    useEffect(() => {
-        if (chartData.length > 0 && scrollRef.current) {
-            // Small delay to ensure the chart has rendered
-            setTimeout(() => {
-                if (scrollRef.current) {
-                    scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
-                }
-            }, 100);
-        }
-    }, [chartData]);
-
-    // SSR-safe window width (must be before any early return — Rules of Hooks)
-    const [windowWidth, setWindowWidth] = useState(375);
-    useEffect(() => {
-        setWindowWidth(window.innerWidth);
-        const handleResize = () => setWindowWidth(window.innerWidth);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
     if (!isLoaded) return <div className="p-8 text-center text-muted-foreground animate-pulse">Laden...</div>;
 
-    const chartWidth = Math.max(windowWidth, chartData.length * 40);
+    // Filter current cycle data for the overview bar temp curve
+    const currentCycleTemps = useMemo(() => {
+        if (!engine) return [];
+        const startDate = engine.currentCycle.startDate;
+        return chartData
+            .filter(d => d.dateStr >= startDate && d.temp !== null)
+            .map(d => d.temp as number);
+    }, [chartData, engine]);
 
     return (
-        <div className="flex flex-col h-[calc(100vh-160px)]">
-            <Card className="flex-1 flex flex-col border-none shadow-sm h-full overflow-hidden">
-                <CardHeader className="pb-2">
-                    <CardTitle>Temperaturkurve</CardTitle>
-                    <CardDescription>
-                        Historie & Phasenverlauf
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="flex-1 min-h-0 pl-0 pb-0 relative overflow-hidden">
-                    {/* Scrollable Chart */}
-                    <div ref={scrollRef} className="h-full w-full overflow-x-auto overflow-y-hidden scrollbar-hide">
-                        <div style={{ width: chartWidth, height: '100%' }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 30 }}>
-                                    <defs>
-                                        <linearGradient id="periodGradient" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="#fca5a5" stopOpacity={0.3} />
-                                            <stop offset="100%" stopColor="#fca5a5" stopOpacity={0} />
-                                        </linearGradient>
-                                        <linearGradient id="fertileGradient" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="#93c5fd" stopOpacity={0.3} />
-                                            <stop offset="100%" stopColor="#93c5fd" stopOpacity={0} />
-                                        </linearGradient>
-                                        <linearGradient id="purpleGradient" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="#d8b4fe" stopOpacity={0.2} />
-                                            <stop offset="100%" stopColor="#d8b4fe" stopOpacity={0} />
-                                        </linearGradient>
-                                    </defs>
+        <div className="flex flex-col h-[calc(100vh-160px)] px-2">
+            {/* Title */}
+            <div className="pb-1 pt-1">
+                <h2 className="text-lg font-semibold">Temperaturkurve</h2>
+                <p className="text-xs text-muted-foreground">Historie & Phasenverlauf</p>
+            </div>
 
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+            {/* Chart */}
+            <div className="flex-1 min-h-0 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>
+                        <defs>
+                            <linearGradient id="periodGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#fca5a5" stopOpacity={0.3} />
+                                <stop offset="100%" stopColor="#fca5a5" stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="fertileGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#93c5fd" stopOpacity={0.3} />
+                                <stop offset="100%" stopColor="#93c5fd" stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="purpleGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#d8b4fe" stopOpacity={0.2} />
+                                <stop offset="100%" stopColor="#d8b4fe" stopOpacity={0} />
+                            </linearGradient>
+                        </defs>
 
-                                    <XAxis
-                                        dataKey="index"
-                                        tickLine={false}
-                                        axisLine={false}
-                                        tick={(props) => {
-                                            const payload = props.payload;
-                                            const item = chartData[payload.value];
-                                            if (!item) return null;
-                                            return <text x={props.x} y={Number(props.y) + 15} textAnchor="middle" fill="var(--muted-foreground)" fontSize={10}>{item.displayDate}</text>
-                                        }}
-                                        padding={{ left: 10, right: 10 }}
-                                        type="number"
-                                        domain={['dataMin', 'dataMax']}
-                                        interval={0} // Show all ticks? No, maybe interval calculation needed.
-                                    // ticks={...} ? Let Recharts handle it but use custom tick renderer to show date
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+
+                        <XAxis
+                            dataKey="index"
+                            tickLine={false}
+                            axisLine={false}
+                            tick={(props) => {
+                                const payload = props.payload;
+                                const item = chartData[payload.value];
+                                if (!item) return null;
+                                return <text x={props.x} y={Number(props.y) + 12} textAnchor="middle" fill="var(--muted-foreground)" fontSize={9}>{item.displayDate}</text>
+                            }}
+                            padding={{ left: 5, right: 5 }}
+                            type="number"
+                            domain={['dataMin', 'dataMax']}
+                        />
+
+                        <YAxis
+                            domain={[35.5, 37.5]}
+                            tickLine={false}
+                            axisLine={false}
+                            tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }}
+                            width={30}
+                            scale="linear"
+                            type="number"
+                            allowDataOverflow={true}
+                        />
+
+                        <Tooltip
+                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                            labelStyle={{ color: 'var(--muted-foreground)' }}
+                            labelFormatter={(value) => chartData[value]?.displayDate}
+                            formatter={(value: any, name: any) => {
+                                if (name === 'temp') return [`${value}°C`, 'Temp'];
+                                return [value, name];
+                            }}
+                        />
+
+                        {/* Phase Backgrounds */}
+                        {phaseAreas.map((area, idx) => (
+                            <ReferenceArea
+                                key={idx}
+                                x1={area.x1}
+                                x2={area.x2}
+                                y1={37.5}
+                                y2={35.5}
+                                fill={`url(#${area.type === 'period' ? 'periodGradient' : area.type === 'fertile' ? 'fertileGradient' : 'purpleGradient'})`}
+                                fillOpacity={1}
+                                label={{
+                                    value: area.type === 'purple' ? '' : area.label,
+                                    position: 'insideBottom',
+                                    fill: area.type === 'period' ? '#ef4444' : area.type === 'fertile' ? '#3b82f6' : '#a855f7',
+                                    fontSize: 9,
+                                    dy: 8
+                                }}
+                            />
+                        ))}
+
+                        {/* Ovulation Markers */}
+                        {chartData.map((item, idx) => {
+                            if (item.isOvulation) {
+                                return (
+                                    <ReferenceLine
+                                        key={`ovu-${idx}`}
+                                        x={item.index}
+                                        stroke="#eab308"
+                                        strokeDasharray="3 3"
+                                        label={{ value: '🌼', position: 'top', fill: '#eab308', fontSize: 11 }}
                                     />
+                                );
+                            }
+                            return null;
+                        })}
 
-                                    <YAxis
-                                        domain={[35.5, 37.5]}
-                                        tickLine={false}
-                                        axisLine={false}
-                                        tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
-                                        width={35}
-                                        scale="linear"
-                                        type="number"
-                                        allowDataOverflow={true} // Fixed scale
-                                    />
+                        {/* Coverline */}
+                        {engine?.currentCycle.coverline && (
+                            <ReferenceLine
+                                y={engine.currentCycle.coverline}
+                                stroke={engine.currentCycle.coverlineProvisional ? '#9ca3af' : '#ef4444'}
+                                strokeDasharray={engine.currentCycle.coverlineProvisional ? '6 4' : '0'}
+                                strokeWidth={engine.currentCycle.coverlineProvisional ? 1.5 : 2}
+                                label={{
+                                    value: `${engine.currentCycle.coverline.toFixed(2)}°`,
+                                    position: 'right',
+                                    fill: engine.currentCycle.coverlineProvisional ? '#9ca3af' : '#ef4444',
+                                    fontSize: 9,
+                                }}
+                            />
+                        )}
 
-                                    <Tooltip
-                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                        labelStyle={{ color: 'var(--muted-foreground)' }}
-                                        labelFormatter={(value) => chartData[value]?.displayDate}
-                                        formatter={(value: any, name: any, props: any) => {
-                                            if (name === 'temp') return [`${value}°C`, 'Temp'];
-                                            return [value, name];
-                                        }}
-                                    />
-
-                                    {/* Phase Backgrounds */}
-                                    {phaseAreas.map((area, idx) => (
-                                        <ReferenceArea
-                                            key={idx}
-                                            x1={area.x1}
-                                            x2={area.x2}
-                                            y1={37.5}
-                                            y2={35.5} // Cover whole height
-                                            fill={`url(#${area.type === 'period' ? 'periodGradient' : area.type === 'fertile' ? 'fertileGradient' : 'purpleGradient'})`}
-                                            fillOpacity={1}
-                                            label={{
-                                                value: area.type === 'purple' ? '' : area.label,
-                                                position: 'insideBottom',
-                                                fill: area.type === 'period' ? '#ef4444' : area.type === 'fertile' ? '#3b82f6' : '#a855f7',
-                                                fontSize: 10,
-                                                dy: 10
-                                            }}
-                                        />
-                                    ))}
-
-                                    {/* Ovulation Markers */}
-                                    {chartData.map((item, idx) => {
-                                        if (item.isOvulation) {
-                                            return (
-                                                <ReferenceLine
-                                                    key={`ovu-${idx}`}
-                                                    x={item.index}
-                                                    stroke="#eab308" // Yellow/Gold
-                                                    strokeDasharray="3 3"
-                                                    label={{ value: '🌼', position: 'top', fill: '#eab308', fontSize: 12 }}
-                                                />
-                                            );
-                                        }
-                                        return null;
-                                    })}
-
-                                    {/* Coverline */}
-                                    {engine?.currentCycle.coverline && (
-                                        <ReferenceLine
-                                            y={engine.currentCycle.coverline}
-                                            stroke={engine.currentCycle.coverlineProvisional ? '#9ca3af' : '#ef4444'}
-                                            strokeDasharray={engine.currentCycle.coverlineProvisional ? '6 4' : '0'}
-                                            strokeWidth={engine.currentCycle.coverlineProvisional ? 1.5 : 2}
-                                            label={{
-                                                value: `${engine.currentCycle.coverline.toFixed(2)}° ${engine.currentCycle.coverlineProvisional ? '(vorläufig)' : 'Coverline'}`,
-                                                position: 'right',
-                                                fill: engine.currentCycle.coverlineProvisional ? '#9ca3af' : '#ef4444',
-                                                fontSize: 10,
-                                            }}
-                                        />
-                                    )}
-
-                                    <Line
-                                        type="monotone"
-                                        dataKey="temp"
-                                        stroke="var(--primary)"
-                                        strokeWidth={3}
-                                        dot={(props: any) => {
-                                            const { cx, cy, payload } = props;
-                                            if (payload.sex) return <circle cx={cx} cy={cy} r={4} fill="var(--rose-500)" stroke="pink" strokeWidth={2} />;
-                                            if (payload.lh === 'peak' || payload.lh === 'positive') return <circle cx={cx} cy={cy} r={4} fill="var(--purple-500)" stroke="white" strokeWidth={2} />;
-                                            if (payload.isOvulation) return <circle cx={cx} cy={cy} r={5} fill="#eab308" stroke="white" strokeWidth={2} />;
-                                            return <circle cx={cx} cy={cy} r={3} fill="var(--primary)" stroke="none" />;
-                                        }}
-                                        connectNulls
-                                    />
-                                </LineChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
+                        <Line
+                            type="monotone"
+                            dataKey="temp"
+                            stroke="var(--primary)"
+                            strokeWidth={2.5}
+                            dot={(props: any) => {
+                                const { cx, cy, payload } = props;
+                                if (payload.sex) return <circle cx={cx} cy={cy} r={3} fill="var(--rose-500)" stroke="pink" strokeWidth={1.5} />;
+                                if (payload.lh === 'peak' || payload.lh === 'positive') return <circle cx={cx} cy={cy} r={3} fill="var(--purple-500)" stroke="white" strokeWidth={1.5} />;
+                                if (payload.isOvulation) return <circle cx={cx} cy={cy} r={4} fill="#eab308" stroke="white" strokeWidth={1.5} />;
+                                return <circle cx={cx} cy={cy} r={2} fill="var(--primary)" stroke="none" />;
+                            }}
+                            connectNulls
+                        />
+                    </LineChart>
+                </ResponsiveContainer>
+            </div>
 
             {/* Zyklusübersicht */}
             {engine && (() => {
                 const cc = engine.currentCycle;
                 const stats = engine.statistics;
                 const estLen = stats.medianCycleLength || 28;
-                const today = cc.day; // current cycle day
+                const today = cc.day;
                 const pct = (day: number) => Math.min(100, Math.max(0, ((day - 1) / (estLen - 1)) * 100));
 
-                // Phase ranges
                 const periodEnd = data.periodLength || 5;
                 const fertileStart = cc.ovulationPred ? Math.max(1, Math.round((new Date(cc.ovulationPred.earliest).getTime() - new Date(cc.startDate).getTime()) / 86400000) - 4) : Math.round(estLen * 0.35);
                 const fertileEnd = cc.ovulationPred ? Math.round((new Date(cc.ovulationPred.latest).getTime() - new Date(cc.startDate).getTime()) / 86400000) + 2 : Math.round(estLen * 0.55);
@@ -296,25 +271,51 @@ export default function ChartPage() {
 
                 const formatDate = (d: string) => new Date(d).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
 
+                // Build SVG polyline for temperature curve inside the bar
+                const barH = 48; // h-12 = 48px
+                const tempMin = 35.5;
+                const tempMax = 37.5;
+                const svgPoints = currentCycleTemps.length > 1
+                    ? currentCycleTemps.map((t, i) => {
+                        const x = (i / (currentCycleTemps.length - 1)) * 100;
+                        const y = barH - ((t - tempMin) / (tempMax - tempMin)) * barH;
+                        return `${x},${y}`;
+                    }).join(' ')
+                    : '';
+
                 return (
-                    <div className="px-3 pb-2 pt-1 shrink-0">
+                    <div className="px-2 pb-1 shrink-0">
                         {/* Phase Bar */}
-                        <div className="relative h-8 rounded-full overflow-hidden bg-purple-100/40 border border-border/50">
+                        <div className="relative h-12 rounded-xl overflow-hidden bg-purple-100/30 border border-border/40">
                             {/* Period */}
                             <div
-                                className="absolute top-0 bottom-0 rounded-l-full bg-rose-300/50"
+                                className="absolute top-0 bottom-0 rounded-l-xl bg-rose-300/40"
                                 style={{ left: '0%', width: `${pct(periodEnd + 1)}%` }}
                             />
                             {/* Fertile Window */}
                             <div
-                                className="absolute top-0 bottom-0 bg-sky-300/40"
+                                className="absolute top-0 bottom-0 bg-sky-300/35"
                                 style={{ left: `${pct(fertileStart)}%`, width: `${pct(fertileEnd + 1) - pct(fertileStart)}%` }}
                             />
+                            {/* Temperature curve overlay */}
+                            {svgPoints && (
+                                <svg className="absolute inset-0 w-full h-full" viewBox={`0 0 100 ${barH}`} preserveAspectRatio="none">
+                                    <polyline
+                                        points={svgPoints}
+                                        fill="none"
+                                        stroke="var(--primary)"
+                                        strokeWidth="1.5"
+                                        strokeLinejoin="round"
+                                        strokeLinecap="round"
+                                        vectorEffect="non-scaling-stroke"
+                                    />
+                                </svg>
+                            )}
                             {/* Ovulation marker */}
                             {ovuDay && (
                                 <div
-                                    className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-amber-400 border-2 border-amber-600 shadow-sm z-10"
-                                    style={{ left: `calc(${pct(ovuDay)}% - 8px)` }}
+                                    className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-amber-400 border-2 border-amber-600 shadow-sm z-10"
+                                    style={{ left: `calc(${pct(ovuDay)}% - 10px)` }}
                                     title={cc.ovulationConfirmedDate ? 'Eisprung bestätigt' : 'Eisprung (geschätzt)'}
                                 />
                             )}
@@ -328,14 +329,14 @@ export default function ChartPage() {
                         </div>
 
                         {/* Day Labels */}
-                        <div className="flex justify-between text-[10px] text-muted-foreground mt-1 px-1">
+                        <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5 px-1">
                             <span>Tag 1</span>
                             <span className="font-semibold text-foreground">Tag {today}</span>
                             <span>~{estLen} Tage</span>
                         </div>
 
                         {/* Info Pills */}
-                        <div className="flex flex-wrap gap-1.5 mt-2">
+                        <div className="flex flex-wrap gap-1.5 mt-1">
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
                                 📍 Zyklustag {today}/{estLen}
                             </span>
@@ -366,26 +367,26 @@ export default function ChartPage() {
             })()}
 
             {/* Legend */}
-            <div className="flex items-center gap-3 text-[11px] text-muted-foreground px-4 py-2 flex-wrap shrink-0">
-                <div className="flex items-center gap-1.5">
-                    <div className="w-4 h-0.5 bg-primary rounded"></div>
+            <div className="flex items-center gap-2 text-[10px] text-muted-foreground px-3 py-1 flex-wrap shrink-0">
+                <div className="flex items-center gap-1">
+                    <div className="w-3 h-0.5 bg-primary rounded"></div>
                     Temperatur
                 </div>
-                <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-sm bg-rose-200/60"></div>
+                <div className="flex items-center gap-1">
+                    <div className="w-2.5 h-2.5 rounded-sm bg-rose-200/60"></div>
                     Periode
                 </div>
-                <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-sm bg-sky-200/60"></div>
+                <div className="flex items-center gap-1">
+                    <div className="w-2.5 h-2.5 rounded-sm bg-sky-200/60"></div>
                     Fruchtbar
                 </div>
-                <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-amber-300 border-2 border-amber-500"></div>
+                <div className="flex items-center gap-1">
+                    <div className="w-2.5 h-2.5 rounded-full bg-amber-300 border border-amber-500"></div>
                     Eisprung
                 </div>
                 {engine?.currentCycle.coverline && (
-                    <div className="flex items-center gap-1.5">
-                        <div className={`w-4 h-0 border-t-2 ${engine.currentCycle.coverlineProvisional ? 'border-dashed border-gray-400' : 'border-solid border-red-500'}`}></div>
+                    <div className="flex items-center gap-1">
+                        <div className={`w-3 h-0 border-t-[1.5px] ${engine.currentCycle.coverlineProvisional ? 'border-dashed border-gray-400' : 'border-solid border-red-500'}`}></div>
                         Coverline{engine.currentCycle.coverlineProvisional ? ' (vorl.)' : ''}
                     </div>
                 )}
