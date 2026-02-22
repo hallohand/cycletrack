@@ -4,8 +4,10 @@ import { useCycleData } from '@/hooks/useCycleData';
 import { runEngine } from '@/lib/cycle-calculations';
 import { streamChat, getApiKey, ChatMessage } from '@/lib/gemini-client';
 import { buildSystemPrompt } from '@/lib/llm-context';
-import { Send, Sparkles, AlertTriangle, Settings } from 'lucide-react';
+import { Send, Sparkles, AlertTriangle, Settings, Trash2 } from 'lucide-react';
 import Link from 'next/link';
+
+const CHAT_STORAGE_KEY = 'cycletrack_ai_chat';
 
 const QUICK_ACTIONS = [
     { label: '💬 Wie ist mein Zyklus?', prompt: 'Wie ist mein aktueller Zyklusstatus? Gib mir eine Zusammenfassung.' },
@@ -23,7 +25,13 @@ interface DisplayMessage {
 
 export default function AssistantPage() {
     const { data, isLoaded } = useCycleData();
-    const [messages, setMessages] = useState<DisplayMessage[]>([]);
+    const [messages, setMessages] = useState<DisplayMessage[]>(() => {
+        if (typeof window === 'undefined') return [];
+        try {
+            const stored = localStorage.getItem(CHAT_STORAGE_KEY);
+            return stored ? JSON.parse(stored) : [];
+        } catch { return []; }
+    });
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [showPrivacyNotice, setShowPrivacyNotice] = useState(false);
@@ -50,6 +58,14 @@ export default function AssistantPage() {
             setShowPrivacyNotice(true);
         }
     }, [apiKey]);
+
+    // Save messages to localStorage whenever they change (skip streaming)
+    useEffect(() => {
+        const completed = messages.filter(m => !m.isStreaming);
+        if (completed.length > 0) {
+            localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(completed));
+        }
+    }, [messages]);
 
     // Auto-scroll to bottom
     useEffect(() => {
@@ -179,13 +195,25 @@ export default function AssistantPage() {
         );
     }
 
+    const clearChat = () => {
+        setMessages([]);
+        localStorage.removeItem(CHAT_STORAGE_KEY);
+    };
+
     return (
         <div className="flex flex-col h-[calc(100dvh-200px)] overflow-hidden">
             {/* Header */}
             <div className="px-4 py-2 shrink-0 border-b border-border/30">
-                <div className="flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-rose-400" />
-                    <h2 className="text-base font-bold">Zyklusassistent</h2>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-rose-400" />
+                        <h2 className="text-base font-bold">Zyklusassistent</h2>
+                    </div>
+                    {messages.length > 0 && (
+                        <button onClick={clearChat} className="text-muted-foreground hover:text-foreground p-1">
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                    )}
                 </div>
                 {engine && (
                     <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -211,8 +239,8 @@ export default function AssistantPage() {
                     >
                         <div
                             className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${msg.role === 'user'
-                                    ? 'bg-rose-400 text-white rounded-br-md'
-                                    : 'bg-muted text-foreground rounded-bl-md'
+                                ? 'bg-rose-400 text-white rounded-br-md'
+                                : 'bg-muted text-foreground rounded-bl-md'
                                 }`}
                         >
                             {msg.text}
@@ -224,23 +252,21 @@ export default function AssistantPage() {
                 ))}
             </div>
 
-            {/* Quick Actions */}
-            {messages.length === 0 && (
-                <div className="px-4 py-2 shrink-0">
-                    <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-                        {QUICK_ACTIONS.map((action, i) => (
-                            <button
-                                key={i}
-                                onClick={() => sendMessage(action.prompt)}
-                                disabled={isLoading}
-                                className="shrink-0 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-full text-xs font-medium hover:bg-rose-100 transition-colors disabled:opacity-50 whitespace-nowrap"
-                            >
-                                {action.label}
-                            </button>
-                        ))}
-                    </div>
+            {/* Quick Actions — always visible */}
+            <div className="px-4 py-1.5 shrink-0">
+                <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+                    {QUICK_ACTIONS.map((action, i) => (
+                        <button
+                            key={i}
+                            onClick={() => sendMessage(action.prompt)}
+                            disabled={isLoading}
+                            className="shrink-0 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-full text-xs font-medium hover:bg-rose-100 transition-colors disabled:opacity-50 whitespace-nowrap"
+                        >
+                            {action.label}
+                        </button>
+                    ))}
                 </div>
-            )}
+            </div>
 
             {/* Input */}
             <form onSubmit={handleSubmit} className="px-4 py-2 shrink-0 border-t border-border/30">

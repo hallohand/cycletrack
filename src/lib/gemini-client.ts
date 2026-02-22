@@ -53,7 +53,7 @@ export async function streamChat(
                 contents,
                 generationConfig: {
                     temperature: 0.7,
-                    maxOutputTokens: 800,
+                    maxOutputTokens: 2000,
                     topP: 0.9,
                 },
             }),
@@ -138,7 +138,7 @@ export async function generateSummary(
                 ],
                 generationConfig: {
                     temperature: 0.6,
-                    maxOutputTokens: 200,
+                    maxOutputTokens: 400,
                     topP: 0.9,
                 },
             }),
