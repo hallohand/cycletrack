@@ -46,6 +46,17 @@ export default function RootLayout({
       <head>
         <meta name="theme-color" content="#fff1f2" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/cycletrack/sw.js', { scope: '/cycletrack/' });
+                });
+              }
+            `,
+          }}
+        />
       </head>
       <body className={"h-full overflow-y-auto overscroll-none touch-pan-x touch-pan-y"}>
         <CycleProvider>
