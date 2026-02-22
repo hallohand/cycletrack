@@ -302,9 +302,10 @@ export default function ChartPage() {
                 const barH = 48; // h-12 = 48px
                 const tempMin = 35.5;
                 const tempMax = 37.5;
+                const todayPct = pct(today);
                 const svgPoints = currentCycleTemps.length > 1
                     ? currentCycleTemps.map((t, i) => {
-                        const x = (i / (currentCycleTemps.length - 1)) * 100;
+                        const x = (i / (currentCycleTemps.length - 1)) * todayPct;
                         const y = barH - ((t - tempMin) / (tempMax - tempMin)) * barH;
                         return `${x},${y}`;
                     }).join(' ')

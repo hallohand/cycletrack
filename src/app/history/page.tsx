@@ -40,7 +40,7 @@ export default function HistoryPage() {
     const futureCycles = engine?.predictions.futureCycles || [];
 
     return (
-        <div className="flex flex-col h-[calc(100dvh-100px)] px-4 pt-4 overflow-hidden">
+        <div className="flex flex-col px-4 overflow-hidden" style={{ height: 'calc(100dvh - 52px - 32px - 112px)' }}>
             {/* Header */}
             <div className="flex justify-between items-center mb-3 shrink-0">
                 <h2 className="text-xl font-bold tracking-tight">Periode & Ovulation</h2>
