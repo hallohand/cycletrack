@@ -300,8 +300,12 @@ export default function ChartPage() {
 
                 // Build SVG polyline for temperature curve inside the bar
                 const barH = 48; // h-12 = 48px
-                const tempMin = 35.5;
-                const tempMax = 37.5;
+                // Use actual data range with padding for better readability
+                const dataMin = currentCycleTemps.length > 0 ? Math.min(...currentCycleTemps) : 36.0;
+                const dataMax = currentCycleTemps.length > 0 ? Math.max(...currentCycleTemps) : 37.0;
+                const tempRange = Math.max(dataMax - dataMin, 0.2); // at least 0.2° range
+                const tempMin = dataMin - tempRange * 0.15; // 15% padding below
+                const tempMax = dataMax + tempRange * 0.15; // 15% padding above
                 const todayPct = pct(today);
                 const svgPoints = currentCycleTemps.length > 1
                     ? currentCycleTemps.map((t, i) => {
