@@ -10,6 +10,7 @@ import { Plus, Calendar as CalendarIcon, Activity, Droplets, Thermometer, Chevro
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Progress } from "@/components/ui/progress"
+import { AiSummaryCard } from '@/components/dashboard/AiSummaryCard';
 
 export default function Dashboard() {
     const { data, isLoaded } = useCycleData();
@@ -84,6 +85,10 @@ export default function Dashboard() {
     return (
         <motion.div variants={container} initial="hidden" animate="show" className="grid grid-cols-2 gap-3 pb-24">
 
+            {/* AI Summary Card */}
+            <motion.div variants={item} className="col-span-2">
+                <AiSummaryCard />
+            </motion.div>
             {/* 1. Main Status Card */}
             <motion.div variants={item} className="col-span-1 row-span-1">
                 <Card className={`h-full border-none shadow-sm ${status.color}`}>

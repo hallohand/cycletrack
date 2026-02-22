@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { Home, Plus, Calendar, BarChart2, Settings, List } from 'lucide-react';
+import { Home, Plus, Calendar, BarChart2, Settings, List, Sparkles } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import PageTransition from './PageTransition';
 import { ReactNode } from 'react';
@@ -27,11 +27,18 @@ export default function Layout({ children }: { children: ReactNode }) {
             {/* Header (Mobile Only) */}
             <header className="bg-background/80 backdrop-blur-md border-b sticky top-0 z-40 px-6 py-3 flex justify-between items-center md:hidden">
                 <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-primary to-rose-400 bg-clip-text text-transparent">CycleTrack</h1>
-                <Link href="/settings">
-                    <Button variant="ghost" size="icon" className="rounded-full">
-                        <Settings className="w-5 h-5 text-muted-foreground" />
-                    </Button>
-                </Link>
+                <div className="flex items-center gap-1">
+                    <Link href="/assistant">
+                        <Button variant="ghost" size="icon" className={`rounded-full ${pathname === '/assistant' ? 'text-rose-400' : ''}`}>
+                            <Sparkles className="w-5 h-5" />
+                        </Button>
+                    </Link>
+                    <Link href="/settings">
+                        <Button variant="ghost" size="icon" className="rounded-full">
+                            <Settings className="w-5 h-5 text-muted-foreground" />
+                        </Button>
+                    </Link>
+                </div>
             </header>
 
             {/* Main Content */}

@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { parseFemometerCSV } from '@/lib/importer';
 import { APP_VERSION, BUILD_DATE } from '@/lib/version';
-import { Trash2, RotateCcw, Cloud, Download, Upload, Shield } from 'lucide-react';
+import { Trash2, RotateCcw, Cloud, Download, Upload, Shield, Sparkles } from 'lucide-react';
 import {
     getGistConfig, setGistConfig, clearGistConfig,
     syncToGist, restoreFromGist,
@@ -46,6 +46,10 @@ export default function SettingsPage() {
     // App Lock State
     const [isAppLockActive, setIsAppLockActive] = useState(false);
 
+    // AI Assistant State
+    const [aiApiKey, setAiApiKey] = useState('');
+    const [hasAiKey, setHasAiKey] = useState(false);
+
     useEffect(() => {
         const config = getGistConfig();
         setGistToken(config.token || '');
@@ -57,6 +61,11 @@ export default function SettingsPage() {
         import('@/lib/auth').then(mod => {
             setIsAppLockActive(mod.isAppLockEnabled());
         });
+
+        // Load AI Key
+        const storedAiKey = localStorage.getItem('cycletrack_gemini_key') || '';
+        setAiApiKey(storedAiKey);
+        setHasAiKey(!!storedAiKey);
     }, []);
 
     const handleToggleAppLock = async () => {
@@ -265,6 +274,63 @@ export default function SettingsPage() {
                             onCheckedChange={() => handleToggleAppLock()}
                         />
                     </div>
+                </CardContent>
+            </Card>
+
+            {/* AI Assistant */}
+            <Card className="border-none shadow-sm bg-white">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Sparkles className="w-5 h-5" />
+                        KI-Assistent
+                    </CardTitle>
+                    <CardDescription>Zyklusanalyse und Tipps mit Gemini AI.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="aiApiKey">Gemini API-Key</Label>
+                        <Input
+                            id="aiApiKey"
+                            type="password"
+                            value={aiApiKey}
+                            onChange={(e) => setAiApiKey(e.target.value)}
+                            placeholder="AIza..."
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Kostenlos erstellen bei{' '}
+                            <a
+                                href="https://aistudio.google.com/apikey"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-rose-400 underline"
+                            >
+                                Google AI Studio →
+                            </a>
+                        </p>
+                    </div>
+                    <Button
+                        variant="outline"
+                        className="w-full gap-2"
+                        onClick={() => {
+                            if (aiApiKey.trim()) {
+                                localStorage.setItem('cycletrack_gemini_key', aiApiKey.trim());
+                                setHasAiKey(true);
+                                toast.success('API-Key gespeichert — KI-Assistent aktiv');
+                            } else {
+                                localStorage.removeItem('cycletrack_gemini_key');
+                                setHasAiKey(false);
+                                toast.success('KI-Assistent deaktiviert');
+                            }
+                        }}
+                    >
+                        <Sparkles className="w-4 h-4" />
+                        {hasAiKey ? 'Key aktualisieren' : 'Key speichern'}
+                    </Button>
+                    {hasAiKey && (
+                        <p className="text-xs text-green-600 flex items-center gap-1">
+                            ✅ KI-Assistent ist aktiv
+                        </p>
+                    )}
                 </CardContent>
             </Card>
 
