@@ -25,8 +25,13 @@ export default function HistoryPage() {
     const medianLen = stats?.medianCycleLength || data.cycleLength || 28;
     const periodLen = data.periodLength || 5;
 
-    // Determine if a cycle is irregular (>25% deviation from median)
-    const isIrregular = (len: number | undefined) => {
+    // Find the longest completed cycle for proportional bar widths
+    const completedCycles = cycles.filter((_, i) => i > 0); // skip current (index 0)
+    const maxCycleLen = Math.max(medianLen, ...completedCycles.map(c => c.length || 0), ...(cycles[0]?.length ? [cycles[0].length] : []));
+
+    // Determine if a cycle is irregular (>25% deviation from median) — only for completed cycles
+    const isIrregular = (len: number | undefined, isCurrentCycle: boolean) => {
+        if (isCurrentCycle) return false; // never mark current cycle
         if (!len || !medianLen) return false;
         return Math.abs(len - medianLen) / medianLen > 0.25;
     };
@@ -35,15 +40,15 @@ export default function HistoryPage() {
     const futureCycles = engine?.predictions.futureCycles || [];
 
     return (
-        <div className="flex flex-col h-[calc(100vh-160px)] px-4 pt-4">
+        <div className="flex flex-col h-[calc(100vh-80px)] px-4 pt-4 overflow-hidden">
             {/* Header */}
-            <div className="flex justify-between items-center mb-3">
+            <div className="flex justify-between items-center mb-3 shrink-0">
                 <h2 className="text-xl font-bold tracking-tight">Periode & Ovulation</h2>
                 <PDFExportButton cycles={cycles} />
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="grid grid-cols-2 gap-3 mb-4 shrink-0">
                 <div className="bg-rose-50 rounded-2xl p-4 flex flex-col items-start relative overflow-hidden">
                     <span className="absolute top-3 right-3 text-rose-300 text-xl">🩸</span>
                     <span className="text-2xl font-bold text-rose-700">{periodLen} Tage</span>
@@ -57,7 +62,7 @@ export default function HistoryPage() {
             </div>
 
             {/* Section Title + Tabs */}
-            <div className="mb-3">
+            <div className="mb-3 shrink-0">
                 <h3 className="text-base font-semibold mb-2">Meine Zyklen</h3>
                 <div className="flex bg-muted rounded-full p-0.5">
                     <button
@@ -81,8 +86,8 @@ export default function HistoryPage() {
                 </div>
             </div>
 
-            {/* Cycle List */}
-            <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pb-4 scrollbar-hide">
+            {/* Cycle List — only this scrolls */}
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-2 scrollbar-hide">
                 {tab === 'history' ? (
                     cycles.length === 0 ? (
                         <p className="text-center text-muted-foreground text-sm py-8">Noch keine Zyklusdaten vorhanden.</p>
@@ -90,14 +95,21 @@ export default function HistoryPage() {
                         cycles.map((cycle, i) => {
                             const len = cycle.length || 0;
                             const pLen = cycle.periodLength;
-                            const irregular = isIrregular(len);
+                            const isCurrentCycle = i === 0;
+                            const irregular = isIrregular(len, isCurrentCycle);
 
-                            // Find ovulation day index
+                            // Find ovulation and fertile window
                             const ovuIdx = cycle.days.findIndex(d => d.isOvulation);
+                            const fertileStart = cycle.days.findIndex(d => d.isFertile);
+                            const fertileEnd = cycle.days.length - 1 - [...cycle.days].reverse().findIndex(d => d.isFertile);
 
-                            // Bar proportions
+                            // Bar proportions relative to longest cycle
+                            const barWidthPct = maxCycleLen > 0 ? (len / maxCycleLen) * 100 : 100;
                             const periodPct = len > 0 ? (pLen / len) * 100 : 20;
                             const ovuPct = ovuIdx >= 0 && len > 0 ? ((ovuIdx + 0.5) / len) * 100 : -1;
+                            const fertStartPct = fertileStart >= 0 && len > 0 ? (fertileStart / len) * 100 : -1;
+                            const fertWidthPct = fertileStart >= 0 && fertileEnd >= fertileStart && len > 0
+                                ? ((fertileEnd - fertileStart + 1) / len) * 100 : 0;
 
                             const startStr = new Date(cycle.startDate).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
                             const endStr = cycle.endDate
@@ -120,29 +132,35 @@ export default function HistoryPage() {
 
                                     {/* Cycle Bar */}
                                     <div className="flex items-center gap-2">
-                                        {/* Period length badge */}
-                                        <span className="text-xs font-bold text-rose-600 bg-rose-100 rounded-full w-7 h-7 flex items-center justify-center shrink-0">
-                                            {pLen}
-                                        </span>
-
-                                        {/* Bar */}
-                                        <div className="flex-1 relative h-7 rounded-full overflow-hidden bg-gray-100">
+                                        {/* Bar — width proportional to longest cycle */}
+                                        <div className="relative h-7 rounded-full overflow-hidden bg-gray-100" style={{ width: `${barWidthPct}%` }}>
                                             {/* Period segment */}
                                             <div
-                                                className="absolute top-0 bottom-0 left-0 rounded-l-full bg-rose-300"
-                                                style={{ width: `${periodPct}%` }}
-                                            />
-                                            {/* Ovulation marker */}
+                                                className="absolute top-0 bottom-0 left-0 rounded-full bg-rose-300 flex items-center justify-center"
+                                                style={{ width: `${periodPct}%`, minWidth: '24px' }}
+                                            >
+                                                <span className="text-[10px] font-bold text-rose-700">{pLen}</span>
+                                            </div>
+
+                                            {/* Fertile window */}
+                                            {fertStartPct >= 0 && fertWidthPct > 0 && (
+                                                <div
+                                                    className="absolute top-0 bottom-0 rounded-full bg-sky-300/50"
+                                                    style={{ left: `${fertStartPct}%`, width: `${fertWidthPct}%` }}
+                                                />
+                                            )}
+
+                                            {/* Ovulation marker — thick vertical line */}
                                             {ovuPct >= 0 && (
                                                 <div
-                                                    className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-amber-400 border-2 border-amber-500 z-10"
-                                                    style={{ left: `calc(${ovuPct}% - 8px)` }}
+                                                    className="absolute top-0.5 bottom-0.5 w-1 bg-amber-500 rounded-full z-10"
+                                                    style={{ left: `calc(${ovuPct}% - 2px)` }}
                                                 />
                                             )}
                                         </div>
 
                                         {/* Cycle length */}
-                                        <span className="text-xs font-bold text-foreground w-7 text-right shrink-0">
+                                        <span className="text-xs font-bold text-foreground shrink-0">
                                             {len}
                                         </span>
                                     </div>
@@ -161,6 +179,7 @@ export default function HistoryPage() {
                             endDate.setDate(endDate.getDate() + (medianLen - 1));
                             const endStr = endDate.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
 
+                            const barWidthPct = maxCycleLen > 0 ? (medianLen / maxCycleLen) * 100 : 100;
                             const periodPct = (periodLen / medianLen) * 100;
 
                             // Ovulation position
@@ -186,29 +205,29 @@ export default function HistoryPage() {
                                     </div>
 
                                     <div className="flex items-center gap-2">
-                                        <span className="text-xs font-bold text-rose-400 bg-rose-50 rounded-full w-7 h-7 flex items-center justify-center shrink-0 border border-dashed border-rose-200">
-                                            {periodLen}
-                                        </span>
-
-                                        <div className="flex-1 relative h-7 rounded-full overflow-hidden bg-gray-50 border border-dashed border-gray-200">
+                                        <div className="relative h-7 rounded-full overflow-hidden bg-gray-50 border border-dashed border-gray-200" style={{ width: `${barWidthPct}%` }}>
                                             {/* Predicted period */}
                                             <div
-                                                className="absolute top-0 bottom-0 left-0 rounded-l-full bg-rose-200/60"
-                                                style={{ width: `${periodPct}%` }}
-                                            />
+                                                className="absolute top-0 bottom-0 left-0 rounded-full bg-rose-200/60 flex items-center justify-center"
+                                                style={{ width: `${periodPct}%`, minWidth: '24px' }}
+                                            >
+                                                <span className="text-[10px] font-bold text-rose-400">{periodLen}</span>
+                                            </div>
+
                                             {/* Predicted fertile window */}
                                             <div
-                                                className="absolute top-0 bottom-0 bg-sky-200/40"
+                                                className="absolute top-0 bottom-0 rounded-full bg-sky-200/40"
                                                 style={{ left: `${fertPctStart}%`, width: `${fertPctWidth}%` }}
                                             />
-                                            {/* Predicted ovulation */}
+
+                                            {/* Predicted ovulation — thick line */}
                                             <div
-                                                className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-amber-300/70 border-2 border-dashed border-amber-400 z-10"
-                                                style={{ left: `calc(${ovuPct}% - 8px)` }}
+                                                className="absolute top-0.5 bottom-0.5 w-1 bg-amber-400/70 rounded-full z-10"
+                                                style={{ left: `calc(${ovuPct}% - 2px)` }}
                                             />
                                         </div>
 
-                                        <span className="text-xs font-bold text-muted-foreground w-7 text-right shrink-0">
+                                        <span className="text-xs font-bold text-muted-foreground shrink-0">
                                             {medianLen}
                                         </span>
                                     </div>
@@ -219,13 +238,11 @@ export default function HistoryPage() {
                 )}
             </div>
 
-            {/* Legend */}
-            <div className="flex justify-center gap-3 text-[10px] text-muted-foreground py-2 shrink-0">
+            {/* Legend — fixed at bottom, above navbar */}
+            <div className="flex justify-center gap-3 text-[10px] text-muted-foreground py-2 shrink-0 border-t border-border/30">
                 <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-rose-300"></div> Periode</div>
-                <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-amber-400"></div> Eisprung</div>
-                {tab === 'forecast' && (
-                    <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm bg-sky-200/60"></div> Fruchtbar</div>
-                )}
+                <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm bg-sky-300/50"></div> Fruchtbar</div>
+                <div className="flex items-center gap-1"><div className="w-1 h-3 rounded-full bg-amber-500"></div> Eisprung</div>
                 <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-gray-100 border border-gray-300"></div> Luteal</div>
             </div>
         </div>
