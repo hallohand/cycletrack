@@ -18,6 +18,15 @@ export const metadata: Metadata = {
     shortcut: '/icon-192.png',
     apple: '/apple-touch-icon.png',
   },
+  applicationName: 'CycleTrack',
+  appleWebApp: {
+    capable: true,
+    title: 'CycleTrack',
+    statusBarStyle: 'default',
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 import { Toaster } from 'sonner';
