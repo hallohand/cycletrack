@@ -55,6 +55,9 @@ export async function streamChat(
                     temperature: 0.7,
                     maxOutputTokens: 2000,
                     topP: 0.9,
+                    thinkingConfig: {
+                        thinkingBudget: 512,
+                    },
                 },
             }),
         });
@@ -140,6 +143,9 @@ export async function generateSummary(
                     temperature: 0.6,
                     maxOutputTokens: 400,
                     topP: 0.9,
+                    thinkingConfig: {
+                        thinkingBudget: 0,
+                    },
                 },
             }),
         });
