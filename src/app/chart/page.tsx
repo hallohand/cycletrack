@@ -1,7 +1,7 @@
 'use client';
 import { useCycleData } from '@/hooks/useCycleData';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, ReferenceLine } from 'recharts';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, ReferenceLine, Brush } from 'recharts';
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { runEngine } from '@/lib/cycle-calculations';
 
@@ -11,6 +11,8 @@ export default function ChartPage() {
     const { data, isLoaded } = useCycleData();
     const [chartData, setChartData] = useState<any[]>([]);
     const [phaseAreas, setPhaseAreas] = useState<any[]>([]);
+    const [startIndex, setStartIndex] = useState<number>(0);
+    const [endIndex, setEndIndex] = useState<number>(0);
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Run engine to get coverline
@@ -60,6 +62,11 @@ export default function ChartPage() {
             };
         });
         setChartData(formattedData);
+        // Default to showing the last 30 days in the main view
+        if (formattedData.length > 0) {
+            setStartIndex(Math.max(0, formattedData.length - 30));
+            setEndIndex(formattedData.length - 1);
+        }
 
         // 3. Calculate Phase Blocks
         const newPhaseAreas: any[] = [];
@@ -141,12 +148,12 @@ export default function ChartPage() {
                         Historie & Phasenverlauf
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="flex-1 min-h-0 pl-0 pb-0 relative overflow-hidden">
-                    {/* Scroll Container */}
-                    <div ref={scrollRef} className="h-full w-full overflow-x-auto overflow-y-hidden scrollbar-hide">
+                <CardContent className="flex-1 min-h-0 pl-0 pb-0 relative overflow-hidden flex flex-col">
+                    {/* Main Chart (70%) */}
+                    <div ref={scrollRef} className="flex-1 w-full min-h-0 overflow-x-auto overflow-y-hidden scrollbar-hide">
                         <div style={{ width: chartWidth, height: '100%' }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 30 }}>
+                                <LineChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="periodGradient" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="0%" stopColor="#fca5a5" stopOpacity={0.3} />
@@ -261,6 +268,10 @@ export default function ChartPage() {
                                         strokeWidth={3}
                                         dot={(props: any) => {
                                             const { cx, cy, payload } = props;
+
+                                            // Only render dots if they are within the brushed area
+                                            if (payload.index < startIndex || payload.index > endIndex) return null;
+
                                             if (payload.sex) return <circle cx={cx} cy={cy} r={4} fill="var(--rose-500)" stroke="pink" strokeWidth={2} />;
                                             if (payload.lh === 'peak' || payload.lh === 'positive') return <circle cx={cx} cy={cy} r={4} fill="var(--purple-500)" stroke="white" strokeWidth={2} />;
                                             if (payload.isOvulation) return <circle cx={cx} cy={cy} r={5} fill="#eab308" stroke="white" strokeWidth={2} />; // Gold dot for Ovu
@@ -272,11 +283,41 @@ export default function ChartPage() {
                             </ResponsiveContainer>
                         </div>
                     </div>
+
+                    {/* Mini-map Chart (30%) */}
+                    <div className="h-[30%] w-full min-h-[80px] mt-2 mb-2 pr-4 pl-4">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={chartData}>
+                                <Line
+                                    type="monotone"
+                                    dataKey="temp"
+                                    stroke="var(--primary)"
+                                    strokeWidth={1.5}
+                                    dot={false}
+                                    connectNulls
+                                />
+                                <YAxis domain={[35.5, 37.5]} hide />
+                                <Brush
+                                    dataKey="displayDate"
+                                    height={30}
+                                    stroke="var(--primary)"
+                                    fill="var(--background)"
+                                    tickFormatter={() => ""} /* hide text */
+                                    startIndex={startIndex}
+                                    endIndex={endIndex}
+                                    onChange={(newIndex) => {
+                                        if (newIndex.startIndex !== undefined) setStartIndex(newIndex.startIndex);
+                                        if (newIndex.endIndex !== undefined) setEndIndex(newIndex.endIndex);
+                                    }}
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
                 </CardContent>
             </Card>
 
             {/* Legend */}
-            <div className="flex items-center gap-3 text-[11px] text-muted-foreground px-4 py-2 flex-wrap">
+            <div className="flex items-center gap-3 text-[11px] text-muted-foreground px-4 py-2 flex-wrap min-h-[40px] shrink-0">
                 <div className="flex items-center gap-1.5">
                     <div className="w-4 h-0.5 bg-primary rounded"></div>
                     Temperatur
@@ -300,6 +341,6 @@ export default function ChartPage() {
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 }
