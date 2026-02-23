@@ -282,7 +282,7 @@ export default function SettingsPage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Sparkles className="w-5 h-5" />
-                        KI-Assistent
+                        Clara
                     </CardTitle>
                     <CardDescription>Zyklusanalyse und Tipps mit Gemini AI.</CardDescription>
                 </CardHeader>
@@ -315,11 +315,11 @@ export default function SettingsPage() {
                             if (aiApiKey.trim()) {
                                 localStorage.setItem('cycletrack_gemini_key', aiApiKey.trim());
                                 setHasAiKey(true);
-                                toast.success('API-Key gespeichert — KI-Assistent aktiv');
+                                toast.success('API-Key gespeichert — Clara ist aktiv');
                             } else {
                                 localStorage.removeItem('cycletrack_gemini_key');
                                 setHasAiKey(false);
-                                toast.success('KI-Assistent deaktiviert');
+                                toast.success('Clara deaktiviert');
                             }
                         }}
                     >
@@ -328,7 +328,7 @@ export default function SettingsPage() {
                     </Button>
                     {hasAiKey && (
                         <p className="text-xs text-green-600 flex items-center gap-1">
-                            ✅ KI-Assistent ist aktiv
+                            ✅ Clara ist aktiv
                         </p>
                     )}
                 </CardContent>

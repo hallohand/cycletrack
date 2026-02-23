@@ -14,7 +14,7 @@ const SLIDING_WINDOW = 6; // Send only last N messages to API
 const QUICK_ACTIONS = [
     { label: '💬 Wie ist mein Zyklus?', prompt: 'Wie ist mein aktueller Zyklusstatus? Gib mir eine Zusammenfassung.' },
     { label: '🌸 Fruchtbare Tage?', prompt: 'Wann sind meine fruchtbaren Tage und wann ist der beste Zeitpunkt für eine Schwangerschaft?' },
-    { label: '🤰 Schwangerschaftschancen?', prompt: 'Wie stehen meine Schwangerschaftschancen aktuell basierend auf meinen Daten?' },
+    { label: '🤰 Optimales Timing?', prompt: 'Wann wäre basierend auf meinen Daten der optimale Zeitpunkt für Geschlechtsverkehr?' },
     { label: '📅 Nächste Periode?', prompt: 'Wann kommt voraussichtlich meine nächste Periode?' },
     { label: '🔍 Auffälligkeiten?', prompt: 'Gibt es Auffälligkeiten in meinen Zyklusdaten die ich beachten sollte?' },
 ];
@@ -214,7 +214,7 @@ export default function AssistantPage() {
         return (
             <div className="flex flex-col items-center justify-center h-[calc(100dvh-200px)] px-6 text-center">
                 <Sparkles className="w-12 h-12 text-rose-300 mb-4" />
-                <h2 className="text-xl font-bold mb-2">KI-Assistent</h2>
+                <h2 className="text-xl font-bold mb-2">Clara</h2>
                 <p className="text-muted-foreground text-sm mb-6 max-w-xs">
                     Um den Assistenten zu nutzen, hinterlege deinen Gemini API-Key in den Einstellungen.
                     Du kannst ihn kostenlos bei Google AI Studio erstellen.
@@ -289,7 +289,7 @@ export default function AssistantPage() {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Sparkles className="w-5 h-5 text-rose-400" />
-                        <h2 className="text-base font-bold">Zyklusassistent</h2>
+                        <h2 className="text-base font-bold">Clara</h2>
                     </div>
                     <div className="flex items-center gap-1">
                         <button onClick={openMemory} className="text-muted-foreground hover:text-foreground p-1" title="Gedächtnis">

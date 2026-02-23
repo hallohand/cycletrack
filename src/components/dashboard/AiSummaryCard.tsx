@@ -7,8 +7,8 @@ import { buildSystemPrompt, buildSummaryPrompt, hashEntries } from '@/lib/llm-co
 import { Sparkles, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 
-const CACHE_KEY = 'cycletrack_ai_summary_v3';
-const HASH_KEY = 'cycletrack_ai_summary_hash_v3';
+const CACHE_KEY = 'cycletrack_ai_summary_v4';
+const HASH_KEY = 'cycletrack_ai_summary_hash_v4';
 
 interface CachedSummary {
     text: string;
