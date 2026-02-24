@@ -307,13 +307,33 @@ export default function ChartPage() {
                 const tempMin = dataMin - tempRange * 0.15; // 15% padding below
                 const tempMax = dataMax + tempRange * 0.15; // 15% padding above
                 const todayPct = pct(today);
-                const svgPoints = currentCycleTemps.length > 1
-                    ? currentCycleTemps.map((t, i) => {
-                        const x = (i / (currentCycleTemps.length - 1)) * todayPct;
-                        const y = barH - ((t - tempMin) / (tempMax - tempMin)) * barH;
-                        return `${x},${y}`;
-                    }).join(' ')
-                    : '';
+
+                // Build smooth SVG path for temperature curve
+                const svgPath = (() => {
+                    if (currentCycleTemps.length < 2) return '';
+                    const pts = currentCycleTemps.map((t, i) => ({
+                        x: (i / (currentCycleTemps.length - 1)) * todayPct,
+                        y: barH - ((t - tempMin) / (tempMax - tempMin)) * barH,
+                    }));
+
+                    // Catmull-Rom to cubic bezier smooth path
+                    let d = `M${pts[0].x},${pts[0].y}`;
+                    const tension = 0.3;
+                    for (let i = 0; i < pts.length - 1; i++) {
+                        const p0 = pts[Math.max(0, i - 1)];
+                        const p1 = pts[i];
+                        const p2 = pts[i + 1];
+                        const p3 = pts[Math.min(pts.length - 1, i + 2)];
+
+                        const cp1x = p1.x + (p2.x - p0.x) * tension;
+                        const cp1y = p1.y + (p2.y - p0.y) * tension;
+                        const cp2x = p2.x - (p3.x - p1.x) * tension;
+                        const cp2y = p2.y - (p3.y - p1.y) * tension;
+
+                        d += ` C${cp1x},${cp1y} ${cp2x},${cp2y} ${p2.x},${p2.y}`;
+                    }
+                    return d;
+                })();
 
                 return (
                     <div className="px-2 pb-1 shrink-0">
@@ -330,10 +350,10 @@ export default function ChartPage() {
                                 style={{ left: `${pct(fertileStart)}%`, width: `${pct(fertileEnd + 1) - pct(fertileStart)}%` }}
                             />
                             {/* Temperature curve overlay */}
-                            {svgPoints && (
+                            {svgPath && (
                                 <svg className="absolute inset-0 w-full h-full" viewBox={`0 0 100 ${barH}`} preserveAspectRatio="none">
-                                    <polyline
-                                        points={svgPoints}
+                                    <path
+                                        d={svgPath}
                                         fill="none"
                                         stroke="var(--primary)"
                                         strokeWidth="1.5"
