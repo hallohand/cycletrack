@@ -119,19 +119,7 @@ export default function ChartPage() {
 
     }, [data, isLoaded, historyCycles]);
 
-    if (!isLoaded) return <div className="p-8 text-center text-muted-foreground animate-pulse">Laden...</div>;
-
-    if (chartData.length === 0) {
-        return (
-            <div className="flex flex-col items-center justify-center h-[calc(100vh-200px)] px-6 text-center">
-                <ThermometerSun className="w-12 h-12 text-muted-foreground/40 mb-4" />
-                <h3 className="text-lg font-serif font-semibold mb-2">Noch keine Temperaturdaten</h3>
-                <p className="text-sm text-muted-foreground max-w-xs">Trage deine Basaltemperatur ein, um die Temperaturkurve zu sehen.</p>
-            </div>
-        );
-    }
-
-    // Filter current cycle data for the overview bar temp curve
+    // Filter current cycle data for the overview bar temp curve (must be before any early return)
     const currentCycleTemps = useMemo(() => {
         if (!engine) return [];
         const startDate = engine.currentCycle.startDate;
@@ -161,6 +149,18 @@ export default function ChartPage() {
     }, []);
 
     const chartWidth = Math.max(windowWidth, chartData.length * 40);
+
+    if (!isLoaded) return <div className="p-8 text-center text-muted-foreground animate-pulse">Laden...</div>;
+
+    if (chartData.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center h-[calc(100vh-200px)] px-6 text-center">
+                <ThermometerSun className="w-12 h-12 text-muted-foreground/40 mb-4" />
+                <h3 className="text-lg font-serif font-semibold mb-2">Noch keine Temperaturdaten</h3>
+                <p className="text-sm text-muted-foreground max-w-xs">Trage deine Basaltemperatur ein, um die Temperaturkurve zu sehen.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col h-[calc(100vh-160px)] px-2">
