@@ -48,7 +48,7 @@ export function OnboardingWizard() {
 
     const handleFinish = () => {
         // Save Settings
-        const newSettings: any = {
+        const newSettings = {
             cycleLength,
             periodLength,
             onboardingCompleted: true
@@ -90,7 +90,7 @@ export function OnboardingWizard() {
                     <div className="flex flex-col items-center animate-in fade-in slide-in-from-bottom-4 duration-500">
                         <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mb-4"><Hand className="w-8 h-8 text-primary" /></div>
                         <DialogHeader>
-                            <DialogTitle className="text-xl text-center">Willkommen bei CycleTrack</DialogTitle>
+                            <DialogTitle className="text-xl text-center font-serif">Willkommen bei CycleTrack</DialogTitle>
                             <DialogDescription className="text-center">
                                 Lass uns kurz deinen Zyklus einrichten, damit die Vorhersagen stimmen.
                             </DialogDescription>
@@ -107,7 +107,7 @@ export function OnboardingWizard() {
                 {step === 2 && (
                     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-8 duration-300">
                         <DialogHeader>
-                            <DialogTitle className="text-center flex items-center justify-center gap-2">
+                            <DialogTitle className="text-center flex items-center justify-center gap-2 font-serif">
                                 <Clock className="w-5 h-5 text-primary" /> Zykluslänge
                             </DialogTitle>
                             <DialogDescription className="text-center">
@@ -139,7 +139,7 @@ export function OnboardingWizard() {
                 {step === 3 && (
                     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-8 duration-300">
                         <DialogHeader>
-                            <DialogTitle className="text-center flex items-center justify-center gap-2">
+                            <DialogTitle className="text-center flex items-center justify-center gap-2 font-serif">
                                 <Droplet className="w-5 h-5 text-primary" /> Periodendauer
                             </DialogTitle>
                             <DialogDescription className="text-center">
@@ -168,7 +168,7 @@ export function OnboardingWizard() {
                 {step === 4 && (
                     <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-8 duration-300">
                         <DialogHeader>
-                            <DialogTitle className="text-center flex items-center justify-center gap-2">
+                            <DialogTitle className="text-center flex items-center justify-center gap-2 font-serif">
                                 <CalendarDays className="w-5 h-5 text-primary" /> Letzte Periode
                             </DialogTitle>
                             <DialogDescription className="text-center">

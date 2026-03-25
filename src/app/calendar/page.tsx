@@ -20,7 +20,7 @@ interface DetailItemProps {
 }
 
 const DetailItem = ({ icon: Icon, label, value, color }: DetailItemProps) => (
-    <div className="flex flex-col items-center bg-white p-2.5 rounded-xl border shadow-sm">
+    <div className="flex flex-col items-center bg-card p-2.5 rounded-xl border shadow-sm">
         <Icon className={`w-5 h-5 mb-1 ${color}`} />
         <span className="text-xs font-semibold text-center leading-tight truncate w-full">{value}</span>
         <span className="text-[10px] text-muted-foreground">{label}</span>
@@ -268,7 +268,7 @@ export default function CalendarPage() {
 
                         {/* Symptoms & Mood Tags */}
                         {(selectedEntry.symptoms && selectedEntry.symptoms.length > 0) || (selectedEntry.mood && selectedEntry.mood.length > 0) ? (
-                            <div className="bg-white p-3 rounded-xl border shadow-sm">
+                            <div className="bg-card p-3 rounded-xl border shadow-sm">
                                 <span className="text-xs font-semibold text-muted-foreground block mb-2">Symptome & Stimmung</span>
                                 <div className="flex flex-wrap gap-1.5">
                                     {selectedEntry.symptoms?.map(s => (
@@ -291,13 +291,13 @@ export default function CalendarPage() {
                         {/* LH / Cervix Row */}
                         <div className="grid grid-cols-2 gap-2">
                             {(selectedEntry.lhTest) && (
-                                <div className="bg-white p-3 rounded-xl border shadow-sm flex items-center justify-between">
+                                <div className="bg-card p-3 rounded-xl border shadow-sm flex items-center justify-between">
                                     <span className="text-xs text-muted-foreground">LH Test</span>
                                     <span className="text-sm font-semibold text-[var(--phase-luteal)] uppercase">{selectedEntry.lhTest === 'peak' ? 'PEAK' : selectedEntry.lhTest === 'positive' ? 'Positiv' : 'Negativ'}</span>
                                 </div>
                             )}
                             {(selectedEntry.cervix) && (
-                                <div className="bg-white p-3 rounded-xl border shadow-sm flex items-center justify-between">
+                                <div className="bg-card p-3 rounded-xl border shadow-sm flex items-center justify-between">
                                     <span className="text-xs text-muted-foreground">Zervix</span>
                                     <span className="text-sm font-semibold text-[var(--phase-fertile)]">
                                         {cervixMap[selectedEntry.cervix] || selectedEntry.cervix}

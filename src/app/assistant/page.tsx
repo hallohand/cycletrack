@@ -193,7 +193,7 @@ export default function AssistantPage() {
             (error) => {
                 setMessages(prev => {
                     const updated = [...prev];
-                    updated[updated.length - 1] = { role: 'assistant', text: `⚠️ ${error}`, isStreaming: false };
+                    updated[updated.length - 1] = { role: 'assistant', text: `${error}`, isStreaming: false };
                     return updated;
                 });
                 setIsLoading(false);
@@ -245,7 +245,7 @@ export default function AssistantPage() {
     if (showPrivacyNotice) {
         return (
             <div className="flex flex-col items-center justify-center h-[calc(100dvh-200px)] px-6 text-center">
-                <AlertTriangle className="w-10 h-10 text-amber-400 mb-4" />
+                <AlertTriangle className="w-10 h-10 text-[var(--phase-ovulation)] mb-4" />
                 <h2 className="text-lg font-bold mb-2">Datenschutzhinweis</h2>
                 <p className="text-muted-foreground text-sm mb-4 max-w-xs">
                     Der Assistent sendet deine Zyklusdaten (Temperaturen, Phasen, Prognosen)
@@ -296,11 +296,11 @@ export default function AssistantPage() {
                         <h2 className="text-base font-bold font-serif">Clara</h2>
                     </div>
                     <div className="flex items-center gap-1">
-                        <button onClick={openMemory} className="text-muted-foreground hover:text-foreground p-1" title="Gedächtnis">
+                        <button onClick={openMemory} className="text-muted-foreground hover:text-foreground p-1" title="Gedächtnis" aria-label="Gedächtnis anzeigen">
                             <BookOpen className="w-4 h-4" />
                         </button>
                         {messages.length > 0 && (
-                            <button onClick={clearChat} className="text-muted-foreground hover:text-foreground p-1" title="Chat löschen">
+                            <button onClick={clearChat} className="text-muted-foreground hover:text-foreground p-1" title="Chat löschen" aria-label="Chat löschen">
                                 <Trash2 className="w-4 h-4" />
                             </button>
                         )}

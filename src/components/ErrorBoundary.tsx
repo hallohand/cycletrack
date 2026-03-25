@@ -28,27 +28,31 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-          <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-6 sm:p-8 text-center space-y-4">
-            <div className="text-4xl">⚠️</div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+        <div className="min-h-screen flex items-center justify-center bg-muted px-4">
+          <div className="max-w-md w-full bg-card rounded-2xl shadow-lg p-6 sm:p-8 text-center space-y-4">
+            <div className="flex justify-center">
+              <svg className="w-12 h-12 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+              </svg>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold font-serif text-foreground">
               Etwas ist schiefgelaufen
             </h1>
             {this.state.error?.message && (
-              <p className="text-sm text-gray-500 bg-gray-100 rounded-lg p-3 break-words font-mono">
+              <p className="text-sm text-muted-foreground bg-muted rounded-lg p-3 break-words font-mono">
                 {this.state.error.message}
               </p>
             )}
             <div className="flex flex-col gap-3 pt-2">
               <button
                 onClick={() => window.location.reload()}
-                className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+                className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white hover:bg-primary/90 transition-colors"
               >
                 Seite neu laden
               </button>
               <button
                 onClick={exportData}
-                className="w-full rounded-xl bg-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-300 transition-colors"
+                className="w-full rounded-xl bg-secondary px-4 py-3 text-sm font-semibold text-secondary-foreground hover:bg-secondary/80 transition-colors"
               >
                 Daten exportieren
               </button>
@@ -57,7 +61,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                   localStorage.clear();
                   window.location.reload();
                 }}
-                className="w-full rounded-xl bg-red-100 px-4 py-3 text-sm font-semibold text-red-700 hover:bg-red-200 transition-colors"
+                className="w-full rounded-xl bg-destructive/10 px-4 py-3 text-sm font-semibold text-destructive hover:bg-destructive/20 transition-colors"
               >
                 Daten löschen &amp; neu starten
               </button>

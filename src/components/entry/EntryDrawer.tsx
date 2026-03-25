@@ -17,7 +17,7 @@ import { Switch } from "@/components/ui/switch"
 import { useState, useEffect } from "react"
 import { useCycleData } from "@/hooks/useCycleData"
 import { toast } from "sonner"
-import { CycleEntry } from "@/lib/types"
+import { CycleEntry, MoodType } from "@/lib/types"
 import { toLocalISO } from "@/lib/utils"
 import { Trash2, Flame, Zap, Heart, ShieldCheck, Droplets } from "lucide-react"
 
@@ -56,7 +56,7 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
         onDeleted?.();
     };
 
-    const handleOptionSelect = (key: keyof CycleEntry, value: any) => {
+    const handleOptionSelect = (key: keyof CycleEntry, value: string | boolean | null) => {
         setEntry(prev => ({ ...prev, [key]: prev[key] === value ? null : value }));
     };
 
@@ -69,12 +69,12 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
         }
     };
 
-    const toggleMood = (mood: string) => {
+    const toggleMood = (mood: MoodType) => {
         const current = entry.mood || [];
-        if (current.includes(mood as any)) {
-            setEntry(prev => ({ ...prev, mood: current.filter(m => m !== mood) as any }));
+        if (current.includes(mood)) {
+            setEntry(prev => ({ ...prev, mood: current.filter(m => m !== mood) }));
         } else {
-            setEntry(prev => ({ ...prev, mood: [...current, mood] as any }));
+            setEntry(prev => ({ ...prev, mood: [...current, mood] }));
         }
     };
 
@@ -182,7 +182,7 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                                             key={p.val}
                                             variant={entry.pain === p.val ? "default" : "outline"}
                                             size="sm"
-                                            className={entry.pain === p.val ? 'bg-amber-600 hover:bg-amber-700 text-white' : ''}
+                                            className={entry.pain === p.val ? 'bg-[var(--phase-ovulation)] hover:bg-[var(--phase-ovulation)]/85 text-white' : ''}
                                             onClick={() => handleOptionSelect('pain', p.val)}
                                         >
                                             <span className="mr-1 inline-flex">{p.icon}</span> {p.label}
@@ -200,7 +200,7 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                                     variant={entry.lhTest === 'peak' ? "default" : "outline"}
                                     size="sm"
                                     onClick={() => handleOptionSelect('lhTest', 'peak')}
-                                    className={entry.lhTest === 'peak' ? 'bg-[#9B8EC4] hover:bg-[#8B7EB4] text-white' : ''}
+                                    className={entry.lhTest === 'peak' ? 'bg-[var(--phase-luteal)] hover:bg-[var(--phase-luteal)]/85 text-white' : ''}
                                 >
                                     Peak (Max)
                                 </Button>
@@ -208,7 +208,7 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                                     variant={entry.lhTest === 'positive' ? "default" : "outline"}
                                     size="sm"
                                     onClick={() => handleOptionSelect('lhTest', 'positive')}
-                                    className={entry.lhTest === 'positive' ? 'bg-[#7B6EB0] hover:bg-[#6B5EA0] text-white' : ''}
+                                    className={entry.lhTest === 'positive' ? 'bg-[var(--phase-luteal)]/80 hover:bg-[var(--phase-luteal)]/70 text-white' : ''}
                                 >
                                     Positiv
                                 </Button>
@@ -238,7 +238,7 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                                     variant={entry.sex === 'protected' ? "default" : "outline"}
                                     size="sm"
                                     onClick={() => handleOptionSelect('sex', 'protected')}
-                                    className={entry.sex === 'protected' ? 'bg-[#5BA8C8] hover:bg-[#4B98B8] text-white' : ''}
+                                    className={entry.sex === 'protected' ? 'bg-[var(--phase-fertile)] hover:bg-[var(--phase-fertile)]/85 text-white' : ''}
                                 >
                                     <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Geschützt
                                 </Button>
@@ -275,7 +275,7 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                                 <Button
                                     variant={entry.period === 'spotting' ? "default" : "outline"}
                                     size="sm"
-                                    className={entry.period === 'spotting' ? 'bg-amber-600 hover:bg-amber-700 text-white text-xs' : 'text-xs'}
+                                    className={entry.period === 'spotting' ? 'bg-[var(--phase-ovulation)] hover:bg-[var(--phase-ovulation)]/85 text-white text-xs' : 'text-xs'}
                                     onClick={() => handleOptionSelect('period', 'spotting')}
                                 >
                                     <Droplets className="w-3.5 h-3.5 mr-1" /> Schmierblutung
@@ -301,10 +301,10 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                                 {moods.map(m => (
                                     <Button
                                         key={m.key}
-                                        variant={(entry.mood || []).includes(m.key as any) ? "default" : "outline"}
+                                        variant={(entry.mood || []).includes(m.key as MoodType) ? "default" : "outline"}
                                         size="sm"
                                         className="text-xs"
-                                        onClick={() => toggleMood(m.key)}
+                                        onClick={() => toggleMood(m.key as MoodType)}
                                     >
                                         {m.label}
                                     </Button>

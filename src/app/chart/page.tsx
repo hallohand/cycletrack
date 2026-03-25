@@ -223,9 +223,10 @@ export default function ChartPage() {
                                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                                     labelStyle={{ color: 'var(--muted-foreground)' }}
                                     labelFormatter={(value) => chartData[value]?.displayDate}
+                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                     formatter={(value: any, name: any) => {
                                         if (name === 'temp') return [`${value}°C`, 'Temp'];
-                                        return [value, name];
+                                        return [String(value), String(name)];
                                     }}
                                 />
 
@@ -360,7 +361,7 @@ export default function ChartPage() {
                 return (
                     <div className="px-2 pb-1 shrink-0">
                         {/* Phase Bar */}
-                        <div className="relative h-12 rounded-xl overflow-hidden bg-purple-100/30 border border-border/40">
+                        <div className="relative h-12 rounded-xl overflow-hidden bg-[var(--phase-luteal-light)]/30 border border-border/40">
                             {/* Period */}
                             <div
                                 className="absolute top-0 bottom-0 rounded-l-xl bg-[var(--phase-period-light)]"
@@ -460,7 +461,7 @@ export default function ChartPage() {
                 </div>
                 {engine?.currentCycle.coverline && (
                     <div className="flex items-center gap-1">
-                        <div className={`w-3 h-0 border-t-[1.5px] ${engine.currentCycle.coverlineProvisional ? 'border-dashed border-gray-400' : 'border-solid border-red-500'}`}></div>
+                        <div className={`w-3 h-0 border-t-[1.5px] ${engine.currentCycle.coverlineProvisional ? 'border-dashed border-muted-foreground' : 'border-solid border-[var(--phase-period)]'}`}></div>
                         Coverline{engine.currentCycle.coverlineProvisional ? ' (vorl.)' : ''}
                     </div>
                 )}

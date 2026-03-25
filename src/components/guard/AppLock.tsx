@@ -54,7 +54,7 @@ export function AppLock({ children }: { children: React.ReactNode }) {
                 <Lock className="w-12 h-12 text-primary" />
             </div>
             <div className="text-center space-y-2">
-                <h1 className="text-2xl font-bold">App gesperrt</h1>
+                <h1 className="text-2xl font-bold font-serif">App gesperrt</h1>
                 <p className="text-muted-foreground">Bitte authentifizieren, um fortzufahren.</p>
             </div>
 
