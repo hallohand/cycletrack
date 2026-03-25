@@ -19,7 +19,7 @@ import { useCycleData } from "@/hooks/useCycleData"
 import { toast } from "sonner"
 import { CycleEntry } from "@/lib/types"
 import { toLocalISO } from "@/lib/utils"
-import { Trash2 } from "lucide-react"
+import { Trash2, Flame, Zap, Heart, ShieldCheck, Droplets } from "lucide-react"
 
 interface EntryDrawerProps {
     children: React.ReactNode;
@@ -83,13 +83,13 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
     // Symptom & Mood options
     const symptoms = ['Krämpfe', 'Kopfschmerzen', 'Brustschmerzen', 'Rückenschmerzen', 'Übelkeit', 'Blähungen', 'Müdigkeit', 'Akne'];
     const moods = [
-        { key: 'happy', label: '😊 Gut' },
-        { key: 'energetic', label: '⚡ Energisch' },
-        { key: 'tired', label: '😴 Müde' },
-        { key: 'sad', label: '😢 Traurig' },
-        { key: 'anxious', label: '😰 Ängstlich' },
-        { key: 'irritated', label: '😤 Gereizt' },
-        { key: 'moodswings', label: '🎢 Schwankungen' },
+        { key: 'happy', label: 'Gut' },
+        { key: 'energetic', label: 'Energisch' },
+        { key: 'tired', label: 'Müde' },
+        { key: 'sad', label: 'Traurig' },
+        { key: 'anxious', label: 'Ängstlich' },
+        { key: 'irritated', label: 'Gereizt' },
+        { key: 'moodswings', label: 'Schwankungen' },
     ];
 
     return (
@@ -104,7 +104,7 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                         <DrawerDescription>Logge deine Daten für {date ? new Date(date + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'long' }) : 'heute'}.</DrawerDescription>
                     </DrawerHeader>
 
-                    <div className="p-4 space-y-5 overflow-y-auto max-h-[55vh]">
+                    <div className="p-4 space-y-5 overflow-y-auto max-h-[65vh]">
                         {/* Date */}
                         <div className="space-y-2">
                             <Label>Datum</Label>
@@ -130,8 +130,8 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                             </Label>
                             <div className="flex items-center gap-2">
                                 <Input
-                                    type="number"
-                                    step="0.01"
+                                    type="text"
+                                    inputMode="decimal"
                                     value={entry.temperature || ''}
                                     onChange={(e) => setEntry(prev => ({ ...prev, temperature: e.target.value ? parseFloat(e.target.value) : null }))}
                                     placeholder="36.50"
@@ -144,7 +144,7 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
 
                         {/* Period & Pain */}
                         <div className="space-y-4 border-b pb-4">
-                            <Label className="text-base font-semibold">Blutung & Schmerz</Label>
+                            <Label className="text-base font-semibold font-serif">Blutung & Schmerz</Label>
 
                             {/* Period Flow */}
                             <div className="space-y-2">
@@ -159,7 +159,7 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                                             key={t.val}
                                             variant={entry.period === t.val ? "default" : "outline"}
                                             size="sm"
-                                            className={entry.period === t.val ? 'bg-rose-500 hover:bg-rose-600 text-white' : ''}
+                                            className={entry.period === t.val ? 'bg-primary hover:bg-primary/90 text-white' : ''}
                                             onClick={() => handleOptionSelect('period', t.val)}
                                         >
                                             {t.label}
@@ -173,19 +173,19 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                                 <Label className="text-xs text-muted-foreground">Schmerzen</Label>
                                 <div className="flex flex-wrap gap-2">
                                     {[
-                                        { val: 'light', label: 'Leicht', icon: '⚡' },
-                                        { val: 'medium', label: 'Mittel', icon: '⚡⚡' },
-                                        { val: 'strong', label: 'Stark', icon: '🔥' },
-                                        { val: 'extreme', label: 'Extrem', icon: '🚑' },
+                                        { val: 'light', label: 'Leicht', icon: <Zap className="w-3.5 h-3.5" /> },
+                                        { val: 'medium', label: 'Mittel', icon: <><Zap className="w-3.5 h-3.5" /><Zap className="w-3.5 h-3.5" /></> },
+                                        { val: 'strong', label: 'Stark', icon: <Flame className="w-3.5 h-3.5" /> },
+                                        { val: 'extreme', label: 'Extrem', icon: <Flame className="w-3.5 h-3.5 text-destructive" /> },
                                     ].map(p => (
                                         <Button
                                             key={p.val}
                                             variant={entry.pain === p.val ? "default" : "outline"}
                                             size="sm"
-                                            className={entry.pain === p.val ? 'bg-orange-500 hover:bg-orange-600 text-white' : ''}
+                                            className={entry.pain === p.val ? 'bg-amber-600 hover:bg-amber-700 text-white' : ''}
                                             onClick={() => handleOptionSelect('pain', p.val)}
                                         >
-                                            <span className="mr-1">{p.icon}</span> {p.label}
+                                            <span className="mr-1 inline-flex">{p.icon}</span> {p.label}
                                         </Button>
                                     ))}
                                 </div>
@@ -200,7 +200,7 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                                     variant={entry.lhTest === 'peak' ? "default" : "outline"}
                                     size="sm"
                                     onClick={() => handleOptionSelect('lhTest', 'peak')}
-                                    className={entry.lhTest === 'peak' ? 'bg-purple-600 hover:bg-purple-700 text-white' : ''}
+                                    className={entry.lhTest === 'peak' ? 'bg-[#9B8EC4] hover:bg-[#8B7EB4] text-white' : ''}
                                 >
                                     Peak (Max)
                                 </Button>
@@ -208,7 +208,7 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                                     variant={entry.lhTest === 'positive' ? "default" : "outline"}
                                     size="sm"
                                     onClick={() => handleOptionSelect('lhTest', 'positive')}
-                                    className={entry.lhTest === 'positive' ? 'bg-indigo-500 hover:bg-indigo-600 text-white' : ''}
+                                    className={entry.lhTest === 'positive' ? 'bg-[#7B6EB0] hover:bg-[#6B5EA0] text-white' : ''}
                                 >
                                     Positiv
                                 </Button>
@@ -230,17 +230,17 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                                     variant={entry.sex === 'unprotected' ? "default" : "outline"}
                                     size="sm"
                                     onClick={() => handleOptionSelect('sex', 'unprotected')}
-                                    className={entry.sex === 'unprotected' ? 'bg-rose-500 hover:bg-rose-600 text-white' : ''}
+                                    className={entry.sex === 'unprotected' ? 'bg-primary hover:bg-primary/90 text-white' : ''}
                                 >
-                                    ❤️ Ungeschützt
+                                    <Heart className="w-3.5 h-3.5 mr-1" /> Ungeschützt
                                 </Button>
                                 <Button
                                     variant={entry.sex === 'protected' ? "default" : "outline"}
                                     size="sm"
                                     onClick={() => handleOptionSelect('sex', 'protected')}
-                                    className={entry.sex === 'protected' ? 'bg-blue-500 hover:bg-blue-600 text-white' : ''}
+                                    className={entry.sex === 'protected' ? 'bg-[#5BA8C8] hover:bg-[#4B98B8] text-white' : ''}
                                 >
-                                    🛡️ Geschützt
+                                    <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Geschützt
                                 </Button>
                             </div>
                         </div>
@@ -275,10 +275,10 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                                 <Button
                                     variant={entry.period === 'spotting' ? "default" : "outline"}
                                     size="sm"
-                                    className={entry.period === 'spotting' ? 'bg-orange-500 hover:bg-orange-600 text-white text-xs' : 'text-xs'}
+                                    className={entry.period === 'spotting' ? 'bg-amber-600 hover:bg-amber-700 text-white text-xs' : 'text-xs'}
                                     onClick={() => handleOptionSelect('period', 'spotting')}
                                 >
-                                    🩸 Schmierblutung
+                                    <Droplets className="w-3.5 h-3.5 mr-1" /> Schmierblutung
                                 </Button>
                                 {symptoms.map(s => (
                                     <Button

@@ -31,32 +31,30 @@ export default function HistoryPage() {
         <div className="flex flex-col px-4 overflow-hidden" style={{ height: 'calc(100dvh - 52px - 32px - 112px)' }}>
             {/* Header */}
             <div className="flex justify-between items-center mb-3 shrink-0">
-                <h2 className="text-xl font-bold tracking-tight">Periode & Ovulation</h2>
+                <h2 className="text-xl font-bold tracking-tight font-serif">Periode & Ovulation</h2>
                 <PDFExportButton cycles={cycles} />
             </div>
 
             {/* Stats Cards */}
             <div className="grid grid-cols-2 gap-3 mb-4 shrink-0">
-                <div className="bg-rose-50 rounded-2xl p-4 flex flex-col items-start relative overflow-hidden">
-                    <span className="absolute top-3 right-3 text-rose-300 text-xl">🩸</span>
-                    <span className="text-2xl font-bold text-rose-700">{periodLen} Tage</span>
-                    <span className="text-xs text-rose-500 mt-0.5">Periodenlänge</span>
+                <div className="bg-[var(--phase-period-light)] rounded-2xl p-4 flex flex-col items-start relative overflow-hidden">
+                    <span className="text-2xl font-bold text-[var(--phase-period)]">{periodLen} Tage</span>
+                    <span className="text-xs text-[var(--phase-period)]/70 mt-0.5">Periodenlänge</span>
                 </div>
-                <div className="bg-amber-50 rounded-2xl p-4 flex flex-col items-start relative overflow-hidden">
-                    <span className="absolute top-3 right-3 text-amber-300 text-xl">🔄</span>
-                    <span className="text-2xl font-bold text-amber-700">{medianLen} Tage</span>
-                    <span className="text-xs text-amber-500 mt-0.5">Zykluslänge</span>
+                <div className="bg-[var(--phase-ovulation-light)] rounded-2xl p-4 flex flex-col items-start relative overflow-hidden">
+                    <span className="text-2xl font-bold text-[var(--phase-ovulation)]">{medianLen} Tage</span>
+                    <span className="text-xs text-[var(--phase-ovulation)]/70 mt-0.5">Zykluslänge</span>
                 </div>
             </div>
 
             {/* Section Title + Tabs */}
             <div className="mb-3 shrink-0">
-                <h3 className="text-base font-semibold mb-2">Meine Zyklen</h3>
+                <h3 className="text-base font-semibold mb-2 font-serif">Meine Zyklen</h3>
                 <div className="flex bg-muted rounded-full p-0.5">
                     <button
                         onClick={() => setTab('history')}
                         className={`flex-1 py-1.5 text-sm font-medium rounded-full transition-all ${tab === 'history'
-                            ? 'bg-rose-400 text-white shadow-sm'
+                            ? 'bg-primary text-primary-foreground shadow-sm'
                             : 'text-muted-foreground hover:text-foreground'
                             }`}
                     >
@@ -65,7 +63,7 @@ export default function HistoryPage() {
                     <button
                         onClick={() => setTab('forecast')}
                         className={`flex-1 py-1.5 text-sm font-medium rounded-full transition-all ${tab === 'forecast'
-                            ? 'bg-rose-400 text-white shadow-sm'
+                            ? 'bg-primary text-primary-foreground shadow-sm'
                             : 'text-muted-foreground hover:text-foreground'
                             }`}
                     >
@@ -105,15 +103,15 @@ export default function HistoryPage() {
                                 : 'Heute';
 
                             return (
-                                <div key={cycle.id} className="space-y-1">
+                                <div key={cycle.id} className="space-y-1 transition-transform active:scale-[0.99]">
                                     {/* Date range + irregular badge */}
                                     <div className="flex items-center gap-2">
                                         <span className="text-xs text-muted-foreground">
                                             {startStr} – {endStr}
                                         </span>
                                         {irregular && (
-                                            <span className="text-[10px] font-medium text-orange-600 flex items-center gap-0.5">
-                                                ⚠ Unregelmäßig
+                                            <span className="text-[10px] font-medium text-[var(--phase-ovulation)] flex items-center gap-0.5">
+                                                Unregelmäßig
                                             </span>
                                         )}
                                     </div>
@@ -121,19 +119,19 @@ export default function HistoryPage() {
                                     {/* Cycle Bar */}
                                     <div className="flex items-center gap-2">
                                         {/* Bar — width proportional to longest cycle */}
-                                        <div className="relative h-7 rounded-full overflow-hidden bg-gray-100" style={{ width: `${barWidthPct}%` }}>
+                                        <div className="relative h-7 rounded-full overflow-hidden bg-muted" style={{ width: `${barWidthPct}%` }}>
                                             {/* Period segment */}
                                             <div
-                                                className="absolute top-0 bottom-0 left-0 rounded-full bg-rose-300 flex items-center justify-center"
+                                                className="absolute top-0 bottom-0 left-0 rounded-full bg-[var(--phase-period)] flex items-center justify-center"
                                                 style={{ width: `${periodPct}%`, minWidth: '24px' }}
                                             >
-                                                <span className="text-[10px] font-bold text-rose-700">{pLen}</span>
+                                                <span className="text-[10px] font-bold text-white">{pLen}</span>
                                             </div>
 
                                             {/* Fertile window */}
                                             {fertStartPct >= 0 && fertWidthPct > 0 && (
                                                 <div
-                                                    className="absolute top-0 bottom-0 rounded-full bg-sky-300/50"
+                                                    className="absolute top-0 bottom-0 rounded-full bg-[var(--phase-fertile)]/40"
                                                     style={{ left: `${fertStartPct}%`, width: `${fertWidthPct}%` }}
                                                 />
                                             )}
@@ -141,7 +139,7 @@ export default function HistoryPage() {
                                             {/* Ovulation marker — thick vertical line */}
                                             {ovuPct >= 0 && (
                                                 <div
-                                                    className="absolute top-0.5 bottom-0.5 w-1 bg-amber-500 rounded-full z-10"
+                                                    className="absolute top-0.5 bottom-0.5 w-1 bg-[var(--phase-ovulation)] rounded-full z-10"
                                                     style={{ left: `calc(${ovuPct}% - 2px)` }}
                                                 />
                                             )}
@@ -184,33 +182,33 @@ export default function HistoryPage() {
                             const fertPctWidth = ((fertEndIdx - fertStartIdx + 1) / medianLen) * 100;
 
                             return (
-                                <div key={i} className="space-y-1 opacity-70">
+                                <div key={i} className="space-y-1 opacity-70 transition-transform active:scale-[0.99]">
                                     <div className="flex items-center gap-2">
                                         <span className="text-xs text-muted-foreground">
                                             {startStr} – {endStr}
                                         </span>
-                                        <span className="text-[10px] font-medium text-sky-500 italic">Prognose</span>
+                                        <span className="text-[10px] font-medium text-[var(--phase-fertile)] italic">Prognose</span>
                                     </div>
 
                                     <div className="flex items-center gap-2">
-                                        <div className="relative h-7 rounded-full overflow-hidden bg-gray-50 border border-dashed border-gray-200" style={{ width: `${barWidthPct}%` }}>
+                                        <div className="relative h-7 rounded-full overflow-hidden bg-muted/50 border border-dashed border-border" style={{ width: `${barWidthPct}%` }}>
                                             {/* Predicted period */}
                                             <div
-                                                className="absolute top-0 bottom-0 left-0 rounded-full bg-rose-200/60 flex items-center justify-center"
+                                                className="absolute top-0 bottom-0 left-0 rounded-full bg-[var(--phase-period)]/30 flex items-center justify-center"
                                                 style={{ width: `${periodPct}%`, minWidth: '24px' }}
                                             >
-                                                <span className="text-[10px] font-bold text-rose-400">{periodLen}</span>
+                                                <span className="text-[10px] font-bold text-[var(--phase-period)]/70">{periodLen}</span>
                                             </div>
 
                                             {/* Predicted fertile window */}
                                             <div
-                                                className="absolute top-0 bottom-0 rounded-full bg-sky-200/40"
+                                                className="absolute top-0 bottom-0 rounded-full bg-[var(--phase-fertile)]/30"
                                                 style={{ left: `${fertPctStart}%`, width: `${fertPctWidth}%` }}
                                             />
 
                                             {/* Predicted ovulation — thick line */}
                                             <div
-                                                className="absolute top-0.5 bottom-0.5 w-1 bg-amber-400/70 rounded-full z-10"
+                                                className="absolute top-0.5 bottom-0.5 w-1 bg-[var(--phase-ovulation)]/60 rounded-full z-10"
                                                 style={{ left: `calc(${ovuPct}% - 2px)` }}
                                             />
                                         </div>
@@ -228,10 +226,10 @@ export default function HistoryPage() {
 
             {/* Legend — fixed at bottom, above navbar */}
             <div className="flex justify-center gap-3 text-[10px] text-muted-foreground py-2 shrink-0 border-t border-border/30">
-                <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-rose-300"></div> Periode</div>
-                <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm bg-sky-300/50"></div> Fruchtbar</div>
-                <div className="flex items-center gap-1"><div className="w-1 h-3 rounded-full bg-amber-500"></div> Eisprung</div>
-                <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-gray-100 border border-gray-300"></div> Luteal</div>
+                <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-[var(--phase-period)]"></div> Periode</div>
+                <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm bg-[var(--phase-fertile)]"></div> Fruchtbar</div>
+                <div className="flex items-center gap-1"><div className="w-1 h-3 rounded-full bg-[var(--phase-ovulation)]"></div> Eisprung</div>
+                <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-muted border border-border"></div> Luteal</div>
             </div>
         </div>
     );

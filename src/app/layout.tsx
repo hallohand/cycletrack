@@ -43,10 +43,12 @@ export default function RootLayout({
   return (
     <html lang="de" className="h-[100dvh]">
       <head>
-        <meta name="theme-color" content="#fff1f2" />
+        <meta name="theme-color" content="#FBF8F6" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <meta
           httpEquiv="Content-Security-Policy"
-          content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://generativelanguage.googleapis.com https://api.github.com; img-src 'self' data:; font-src 'self';"
+          content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' https://generativelanguage.googleapis.com https://api.github.com; img-src 'self' data:; font-src 'self' https://fonts.gstatic.com;"
         />
         <script
           dangerouslySetInnerHTML={{

@@ -8,9 +8,9 @@ import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
 import { de } from 'date-fns/locale';
-import { ArrowRight, Check, Droplet, CalendarDays, Clock, PartyPopper } from 'lucide-react';
+import { ArrowRight, Check, Droplet, CalendarDays, Clock, PartyPopper, Hand } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
+import { cn, toLocalISO } from '@/lib/utils';
 
 export function OnboardingWizard() {
     const { data, isLoaded, updateSettings, updateEntry, setAllEntries } = useCycleData();
@@ -59,12 +59,6 @@ export function OnboardingWizard() {
         if (lastPeriodDate) {
             // Create period entries for the duration
             const startDate = new Date(lastPeriodDate);
-            // Adjust to local ISO string to avoid timezone issues
-            const toLocalISO = (d: Date) => {
-                const offset = d.getTimezoneOffset();
-                const local = new Date(d.getTime() - (offset * 60000));
-                return local.toISOString().split('T')[0];
-            };
 
             for (let i = 0; i < periodLength; i++) {
                 const d = new Date(startDate);
@@ -94,7 +88,7 @@ export function OnboardingWizard() {
 
                 {step === 1 && (
                     <div className="flex flex-col items-center animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mb-4 text-3xl">👋</div>
+                        <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mb-4"><Hand className="w-8 h-8 text-primary" /></div>
                         <DialogHeader>
                             <DialogTitle className="text-xl text-center">Willkommen bei CycleTrack</DialogTitle>
                             <DialogDescription className="text-center">
@@ -104,7 +98,7 @@ export function OnboardingWizard() {
                         <div className="py-6">
                             <p className="text-sm text-muted-foreground">Das dauert nur 30 Sekunden.</p>
                         </div>
-                        <Button className="w-full bg-rose-500 hover:bg-rose-600 text-white" onClick={handleNext}>
+                        <Button className="w-full bg-primary hover:bg-primary/90 text-white" onClick={handleNext}>
                             Los geht's <ArrowRight className="w-4 h-4 ml-2" />
                         </Button>
                     </div>
@@ -114,7 +108,7 @@ export function OnboardingWizard() {
                     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-8 duration-300">
                         <DialogHeader>
                             <DialogTitle className="text-center flex items-center justify-center gap-2">
-                                <Clock className="w-5 h-5 text-rose-500" /> Zykluslänge
+                                <Clock className="w-5 h-5 text-primary" /> Zykluslänge
                             </DialogTitle>
                             <DialogDescription className="text-center">
                                 Wie viele Tage liegen durchschnittlich zwischen deinen Perioden?
@@ -122,7 +116,7 @@ export function OnboardingWizard() {
                         </DialogHeader>
 
                         <div className="py-4 space-y-6">
-                            <div className="text-4xl font-bold text-rose-500 text-center font-mono">
+                            <div className="text-4xl font-bold text-primary text-center font-mono">
                                 {cycleLength} <span className="text-base font-normal text-muted-foreground">Tage</span>
                             </div>
                             <Slider
@@ -146,7 +140,7 @@ export function OnboardingWizard() {
                     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-8 duration-300">
                         <DialogHeader>
                             <DialogTitle className="text-center flex items-center justify-center gap-2">
-                                <Droplet className="w-5 h-5 text-rose-500" /> Periodendauer
+                                <Droplet className="w-5 h-5 text-primary" /> Periodendauer
                             </DialogTitle>
                             <DialogDescription className="text-center">
                                 Wie viele Tage blutest du üblicherweise?
@@ -154,7 +148,7 @@ export function OnboardingWizard() {
                         </DialogHeader>
 
                         <div className="py-4 space-y-6">
-                            <div className="text-4xl font-bold text-rose-500 text-center font-mono">
+                            <div className="text-4xl font-bold text-primary text-center font-mono">
                                 {periodLength} <span className="text-base font-normal text-muted-foreground">Tage</span>
                             </div>
                             <Slider
@@ -175,7 +169,7 @@ export function OnboardingWizard() {
                     <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-8 duration-300">
                         <DialogHeader>
                             <DialogTitle className="text-center flex items-center justify-center gap-2">
-                                <CalendarDays className="w-5 h-5 text-rose-500" /> Letzte Periode
+                                <CalendarDays className="w-5 h-5 text-primary" /> Letzte Periode
                             </DialogTitle>
                             <DialogDescription className="text-center">
                                 Wann hat deine letzte Periode <b>begonnen</b>?
@@ -199,7 +193,7 @@ export function OnboardingWizard() {
 
                         <div className="flex gap-2">
                             <Button variant="outline" className="flex-1" onClick={handleFinish}>Überspringen</Button>
-                            <Button className="flex-1 bg-rose-500 hover:bg-rose-600 text-white" onClick={handleFinish} disabled={!lastPeriodDate}>
+                            <Button className="flex-1 bg-primary hover:bg-primary/90 text-white" onClick={handleFinish} disabled={!lastPeriodDate}>
                                 Fertig <Check className="w-4 h-4 ml-2" />
                             </Button>
                         </div>

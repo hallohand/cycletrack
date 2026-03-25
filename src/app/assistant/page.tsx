@@ -11,11 +11,11 @@ const CHAT_STORAGE_KEY = 'cycletrack_ai_chat';
 const SLIDING_WINDOW = 6; // Send only last N messages to API
 
 const QUICK_ACTIONS = [
-    { label: '💬 Wie ist mein Zyklus?', prompt: 'Wie ist mein aktueller Zyklusstatus? Gib mir eine Zusammenfassung.' },
-    { label: '🌸 Fruchtbare Tage?', prompt: 'Wann sind meine fruchtbaren Tage und wann ist der beste Zeitpunkt für eine Schwangerschaft?' },
-    { label: '🤰 Optimales Timing?', prompt: 'Wann wäre basierend auf meinen Daten der optimale Zeitpunkt für Geschlechtsverkehr?' },
-    { label: '📅 Nächste Periode?', prompt: 'Wann kommt voraussichtlich meine nächste Periode?' },
-    { label: '🔍 Auffälligkeiten?', prompt: 'Gibt es Auffälligkeiten in meinen Zyklusdaten die ich beachten sollte?' },
+    { label: 'Mein Zyklus', prompt: 'Wie ist mein aktueller Zyklusstatus? Gib mir eine Zusammenfassung.' },
+    { label: 'Fruchtbare Tage', prompt: 'Wann sind meine fruchtbaren Tage und wann ist der beste Zeitpunkt für eine Schwangerschaft?' },
+    { label: 'Optimales Timing', prompt: 'Wann wäre basierend auf meinen Daten der optimale Zeitpunkt für Geschlechtsverkehr?' },
+    { label: 'Nächste Periode', prompt: 'Wann kommt voraussichtlich meine nächste Periode?' },
+    { label: 'Auffälligkeiten', prompt: 'Gibt es Auffälligkeiten in meinen Zyklusdaten die ich beachten sollte?' },
 ];
 
 interface DisplayMessage {
@@ -113,6 +113,16 @@ export default function AssistantPage() {
         }
     }, [apiKey]);
 
+    // Escape key closes memory modal
+    useEffect(() => {
+        if (!showMemory) return;
+        const handleKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setShowMemory(false);
+        };
+        document.addEventListener('keydown', handleKey);
+        return () => document.removeEventListener('keydown', handleKey);
+    }, [showMemory]);
+
     // Save messages to localStorage whenever they change (skip streaming)
     useEffect(() => {
         const completed = messages.filter(m => !m.isStreaming);
@@ -207,7 +217,7 @@ export default function AssistantPage() {
     if (!apiKey) {
         return (
             <div className="flex flex-col items-center justify-center h-[calc(100dvh-200px)] px-6 text-center">
-                <Sparkles className="w-12 h-12 text-rose-300 mb-4" />
+                <Sparkles className="w-12 h-12 text-primary/50 mb-4" />
                 <h2 className="text-xl font-bold mb-2">Clara</h2>
                 <p className="text-muted-foreground text-sm mb-6 max-w-xs">
                     Um den Assistenten zu nutzen, hinterlege deinen Gemini API-Key in den Einstellungen.
@@ -215,7 +225,7 @@ export default function AssistantPage() {
                 </p>
                 <Link
                     href="/settings"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-rose-400 text-white rounded-full text-sm font-medium hover:bg-rose-500 transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-colors"
                 >
                     <Settings className="w-4 h-4" /> Zu den Einstellungen
                 </Link>
@@ -223,7 +233,7 @@ export default function AssistantPage() {
                     href="https://aistudio.google.com/apikey"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-3 text-xs text-rose-400 underline"
+                    className="mt-3 text-xs text-primary underline"
                 >
                     API-Key bei Google AI Studio erstellen →
                 </a>
@@ -245,7 +255,7 @@ export default function AssistantPage() {
                 <div className="flex gap-3">
                     <button
                         onClick={acceptPrivacy}
-                        className="px-4 py-2 bg-rose-400 text-white rounded-full text-sm font-medium hover:bg-rose-500 transition-colors"
+                        className="px-4 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-colors"
                     >
                         Verstanden & Fortfahren
                     </button>
@@ -282,8 +292,8 @@ export default function AssistantPage() {
             <div className="px-4 py-2 shrink-0 border-b border-border/30">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-rose-400" />
-                        <h2 className="text-base font-bold">Clara</h2>
+                        <Sparkles className="w-5 h-5 text-primary" />
+                        <h2 className="text-base font-bold font-serif">Clara</h2>
                     </div>
                     <div className="flex items-center gap-1">
                         <button onClick={openMemory} className="text-muted-foreground hover:text-foreground p-1" title="Gedächtnis">
@@ -307,7 +317,7 @@ export default function AssistantPage() {
             <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3 scrollbar-hide">
                 {messages.length === 0 && (
                     <div className="text-center py-8">
-                        <Sparkles className="w-8 h-8 text-rose-200 mx-auto mb-3" />
+                        <Sparkles className="w-8 h-8 text-primary/30 mx-auto mb-3" />
                         <p className="text-sm text-muted-foreground mb-1">Frag mich etwas über deinen Zyklus!</p>
                         <p className="text-[10px] text-muted-foreground">Oder nutze die Vorschläge unten</p>
                     </div>
@@ -320,13 +330,13 @@ export default function AssistantPage() {
                     >
                         <div
                             className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed ${msg.role === 'user'
-                                ? 'bg-rose-400 text-white rounded-br-md'
+                                ? 'bg-primary text-primary-foreground rounded-br-md'
                                 : 'bg-muted text-foreground rounded-bl-md'
                                 }`}
                         >
                             {msg.role === 'assistant' ? renderMarkdown(msg.text) : msg.text}
                             {msg.isStreaming && (
-                                <span className="inline-block w-1.5 h-4 bg-rose-400 ml-0.5 animate-pulse rounded-full" />
+                                <span className="inline-block w-1.5 h-4 bg-primary ml-0.5 animate-pulse rounded-full" />
                             )}
                         </div>
                     </div>
@@ -341,7 +351,7 @@ export default function AssistantPage() {
                             key={i}
                             onClick={() => sendMessage(action.prompt)}
                             disabled={isLoading}
-                            className="shrink-0 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-full text-xs font-medium hover:bg-rose-100 transition-colors disabled:opacity-50 whitespace-nowrap"
+                            className="shrink-0 px-3 py-1.5 bg-secondary text-secondary-foreground rounded-full text-xs font-medium hover:bg-secondary/80 transition-colors disabled:opacity-50 whitespace-nowrap"
                         >
                             {action.label}
                         </button>
@@ -364,7 +374,7 @@ export default function AssistantPage() {
                     <button
                         type="submit"
                         disabled={!input.trim() || isLoading}
-                        className="w-8 h-8 bg-rose-400 text-white rounded-full flex items-center justify-center shrink-0 disabled:opacity-30 hover:bg-rose-500 transition-colors"
+                        className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center shrink-0 disabled:opacity-30 hover:bg-primary/90 transition-colors"
                     >
                         <Send className="w-4 h-4" />
                     </button>
@@ -373,11 +383,11 @@ export default function AssistantPage() {
 
             {/* Memory Viewer Modal */}
             {showMemory && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
-                    <div className="bg-background w-full max-w-md rounded-t-2xl p-4 max-h-[80vh] flex flex-col animate-in slide-in-from-bottom duration-200">
+                <div role="dialog" aria-modal="true" className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+                    <div aria-label="Patientenakte" className="bg-background w-full max-w-md rounded-t-2xl p-4 max-h-[80vh] flex flex-col animate-in slide-in-from-bottom duration-200">
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
-                                <BookOpen className="w-4 h-4 text-rose-400" />
+                                <BookOpen className="w-4 h-4 text-primary" />
                                 <h3 className="text-sm font-bold">Patientenakte</h3>
                             </div>
                             <button onClick={() => setShowMemory(false)} className="p-1">
@@ -392,7 +402,7 @@ export default function AssistantPage() {
                         <div className="flex gap-2 mt-3">
                             <button
                                 onClick={saveMemory}
-                                className="flex-1 px-3 py-2 bg-rose-400 text-white rounded-full text-sm font-medium hover:bg-rose-500 transition-colors"
+                                className="flex-1 px-3 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-colors"
                             >
                                 Speichern
                             </button>

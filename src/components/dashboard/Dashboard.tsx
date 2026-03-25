@@ -37,22 +37,22 @@ export default function Dashboard() {
     const daysToPeriod = nextPeriodStr ? Math.ceil((new Date(nextPeriodStr).getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : '?';
 
     // Status Logic Mapping
-    let status = { title: 'Lutealphase', subtitle: 'Nach Eisprung', color: 'bg-orange-50', text: 'text-orange-700', icon: Activity };
+    let status = { title: 'Lutealphase', subtitle: 'Nach Eisprung', color: 'bg-[var(--phase-luteal-light)]', text: 'text-[var(--phase-luteal)]', icon: Activity };
 
     if (current.state === 'MENSTRUATION') {
-        status = { title: 'Periode', subtitle: `Zyklustag ${current.day}`, color: 'bg-rose-100', text: 'text-rose-700', icon: Droplets };
+        status = { title: 'Periode', subtitle: `Zyklustag ${current.day}`, color: 'bg-primary/10', text: 'text-primary', icon: Droplets };
     } else if (current.state === 'PRE_FERTILE') {
-        status = { title: 'Follikelphase', subtitle: `Zyklustag ${current.day}`, color: 'bg-blue-50', text: 'text-blue-700', icon: Leaf };
+        status = { title: 'Follikelphase', subtitle: `Zyklustag ${current.day}`, color: 'bg-accent', text: 'text-accent-foreground', icon: Leaf };
     } else if (current.state === 'FERTILE_MID') {
-        status = { title: 'Fruchtbar', subtitle: 'Beginn', color: 'bg-green-100', text: 'text-green-700', icon: Thermometer };
+        status = { title: 'Fruchtbar', subtitle: 'Beginn', color: 'bg-[var(--phase-fertile-light)]', text: 'text-[var(--phase-fertile)]', icon: Thermometer };
     } else if (current.state === 'PEAK_LH') {
-        status = { title: 'Maximale Fruchtbarkeit', subtitle: 'Eisprung steht bevor', color: 'bg-purple-100', text: 'text-purple-700', icon: Siren };
+        status = { title: 'Maximale Fruchtbarkeit', subtitle: 'Eisprung steht bevor', color: 'bg-[var(--phase-ovulation-light)]', text: 'text-[var(--phase-ovulation)]', icon: Siren };
     } else if (current.state === 'POST_OVU_PENDING') {
-        status = { title: 'Eisprung möglich', subtitle: 'Warte auf Temp-Anstieg', color: 'bg-yellow-50', text: 'text-yellow-700', icon: Activity };
+        status = { title: 'Eisprung möglich', subtitle: 'Warte auf Temp-Anstieg', color: 'bg-[var(--phase-ovulation-light)]', text: 'text-[var(--phase-ovulation)]', icon: Activity };
     } else if (current.state === 'OVU_CONFIRMED') {
-        status = { title: 'Lutealphase', subtitle: 'Eisprung bestätigt ✅', color: 'bg-green-50', text: 'text-green-800', icon: CheckCircle2 };
+        status = { title: 'Lutealphase', subtitle: 'Eisprung bestätigt', color: 'bg-[var(--phase-luteal-light)]', text: 'text-[var(--phase-luteal)]', icon: CheckCircle2 };
     } else if (current.state === 'ANOVULATORY_SUSPECTED') {
-        status = { title: 'Unklar', subtitle: 'Kein eindeutiger Temp-Anstieg', color: 'bg-gray-100', text: 'text-gray-700', icon: AlertCircle };
+        status = { title: 'Unklar', subtitle: 'Kein eindeutiger Temp-Anstieg', color: 'bg-muted', text: 'text-muted-foreground', icon: AlertCircle };
     }
 
     // Suggestion Text
@@ -66,11 +66,13 @@ export default function Dashboard() {
         suggestion = "Fruchtbare Tage. Beobachte deinen Zervixschleim.";
     }
 
+    const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
     const container = {
         hidden: { opacity: 0 },
-        show: { opacity: 1, transition: { staggerChildren: 0.05 } }
+        show: { opacity: 1, transition: { staggerChildren: prefersReducedMotion ? 0 : 0.05 } }
     };
-    const item = {
+    const item = prefersReducedMotion ? { hidden: {}, show: {} } : {
         hidden: { opacity: 0, y: 10 },
         show: { opacity: 1, y: 0 }
     };
@@ -84,10 +86,10 @@ export default function Dashboard() {
             </motion.div>
             {/* 1. Main Status Card */}
             <motion.div variants={item} className="col-span-1 row-span-1">
-                <Card className={`h-full border-none shadow-sm ${status.color}`}>
+                <Card className={`h-full border-none shadow-sm transition-transform active:scale-[0.98] ${status.color}`}>
                     <CardHeader className="p-4 pb-2">
                         <CardDescription className={status.text}>{status.title}</CardDescription>
-                        <CardTitle className={`text-xl font-bold ${status.text} leading-tight`}>{status.subtitle}</CardTitle>
+                        <CardTitle className={`text-xl font-bold font-serif ${status.text} leading-tight`}>{status.subtitle}</CardTitle>
                     </CardHeader>
                     <CardContent className="p-4 pt-0">
                         <status.icon className={`h-8 w-8 ${status.text} opacity-80`} />
@@ -97,7 +99,7 @@ export default function Dashboard() {
 
             {/* 2. Quick Action / Prediction */}
             <motion.div variants={item} className="col-span-1 row-span-1">
-                <Card className="h-full shadow-sm border p-4 flex flex-col justify-between">
+                <Card className="h-full shadow-sm border p-4 flex flex-col justify-between transition-transform active:scale-[0.98]">
                     <div className="text-xs text-muted-foreground uppercase">Nächste Periode</div>
                     <div className="text-2xl font-bold text-primary">
                         {daysToPeriod} <span className="text-sm font-normal text-muted-foreground">Tage</span>
@@ -116,7 +118,7 @@ export default function Dashboard() {
             {/* 3. Suggestion / Warning Box */}
             {suggestion && (
                 <motion.div variants={item} className="col-span-2">
-                    <div className={`p-3 rounded-xl border flex items-start gap-3 ${current.state === 'OVU_CONFIRMED' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
+                    <div className={`p-3 rounded-xl border flex items-start gap-3 ${current.state === 'OVU_CONFIRMED' ? 'bg-[var(--phase-luteal-light)] border-[var(--phase-luteal)]/30 text-[var(--phase-luteal)]' : 'bg-[var(--phase-fertile-light)] border-[var(--phase-fertile)]/30 text-[var(--phase-fertile)]'}`}>
                         {current.state === 'OVU_CONFIRMED' ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <AlertCircle className="w-5 h-5 shrink-0" />}
                         <span className="text-sm font-medium">{suggestion}</span>
                     </div>
@@ -125,9 +127,9 @@ export default function Dashboard() {
 
             {/* 4. Cycle Progress & Stats */}
             <motion.div variants={item} className="col-span-2">
-                <Card className="shadow-sm border-none bg-white">
+                <Card className="shadow-sm border-none bg-card">
                     <CardHeader className="p-4 pb-2">
-                        <CardTitle className="text-base flex justify-between">
+                        <CardTitle className="text-base font-serif flex justify-between">
                             <span>Zyklus-Statistik</span>
                             <span className="text-muted-foreground font-normal">Tag {current.day}</span>
                         </CardTitle>
@@ -141,11 +143,6 @@ export default function Dashboard() {
                     </CardContent>
                 </Card>
             </motion.div>
-
-            {/* Debug / Pro Info */}
-            <div className="col-span-2 text-[10px] text-center text-muted-foreground mt-2">
-                Engine Confidence: {stats.historyCount > 2 ? 'High' : 'Low (Building History)'} • State: {current.state}
-            </div>
 
         </motion.div>
     );

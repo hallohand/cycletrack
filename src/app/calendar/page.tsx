@@ -206,14 +206,14 @@ export default function CalendarPage() {
                             className="w-full h-full [--cell-size:clamp(30px,9vw,40px)] bg-transparent border-none shadow-none"
                             modifiers={modifiers}
                             modifiersClassNames={{
-                                period: "bg-rose-100 text-rose-700 font-semibold rounded-md",
-                                predicted_period: "bg-rose-50 text-rose-400 rounded-md border border-dashed border-rose-200",
-                                fertile: "bg-sky-100 text-sky-700 rounded-md",
-                                predicted_fertile: "bg-sky-50 text-sky-400 rounded-md border border-dashed border-sky-200",
-                                ovulation: "ring-2 ring-amber-400 ring-offset-1 bg-amber-50 text-amber-700 rounded-full font-bold",
-                                predicted_ovulation: "ring-2 ring-amber-300 ring-offset-1 bg-amber-50/50 text-amber-400 rounded-full",
-                                spotting: "bg-orange-50 text-orange-600 rounded-md",
-                                sex: "after:content-['❤️'] after:absolute after:-top-1 after:-right-1 after:text-[8px] after:z-10",
+                                period: "bg-[var(--phase-period-light)] text-[var(--phase-period)] font-semibold rounded-md",
+                                predicted_period: "bg-[var(--phase-period-light)]/50 text-[var(--phase-period)]/60 rounded-md border border-dashed border-[var(--phase-period)]/30",
+                                fertile: "bg-[var(--phase-fertile-light)] text-[var(--phase-fertile)] rounded-md",
+                                predicted_fertile: "bg-[var(--phase-fertile-light)]/50 text-[var(--phase-fertile)]/60 rounded-md border border-dashed border-[var(--phase-fertile)]/30",
+                                ovulation: "ring-2 ring-[var(--phase-ovulation)] ring-offset-1 bg-[var(--phase-ovulation-light)] text-[var(--phase-ovulation)] rounded-full font-bold",
+                                predicted_ovulation: "ring-2 ring-[var(--phase-ovulation)]/50 ring-offset-1 bg-[var(--phase-ovulation-light)]/50 text-[var(--phase-ovulation)]/60 rounded-full",
+                                spotting: "bg-[var(--phase-ovulation-light)] text-[var(--phase-ovulation)] rounded-md",
+                                sex: "after:content-['♥'] after:absolute after:-top-1 after:-right-1 after:text-[8px] after:text-primary after:z-10",
                             }}
                         />
                     </div>
@@ -223,7 +223,7 @@ export default function CalendarPage() {
             {/* Selected Date Details (Inline) */}
             <div className="flex-1 px-4 py-4 bg-muted/30 border-t min-h-0 overflow-y-auto">
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold text-lg text-primary">
+                    <h3 className="font-serif font-semibold text-lg text-primary">
                         {date ? date.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Kein Datum gewählt'}
                     </h3>
 
@@ -244,25 +244,25 @@ export default function CalendarPage() {
                                 icon={Thermometer}
                                 label="Temp"
                                 value={selectedEntry.temperature ? `${selectedEntry.temperature}°` : '–'}
-                                color="text-rose-500"
+                                color="text-primary"
                             />
                             <DetailItem
                                 icon={Droplet}
                                 label="Blutung"
                                 value={selectedEntry.period === 'spotting' ? 'Schmier' : (selectedEntry.period ? (periodMap[selectedEntry.period] || selectedEntry.period) : '–')}
-                                color="text-blue-500"
+                                color="text-[var(--phase-fertile)]"
                             />
                             <DetailItem
                                 icon={Zap}
                                 label="Schmerz"
                                 value={selectedEntry.pain ? (painMap[selectedEntry.pain] || selectedEntry.pain) : '–'}
-                                color="text-orange-500"
+                                color="text-[var(--phase-ovulation)]"
                             />
                             <DetailItem
                                 icon={Heart}
                                 label="GV"
                                 value={selectedEntry.sex ? 'Ja' : '–'}
-                                color={selectedEntry.sex ? "text-red-500" : "text-gray-400"}
+                                color={selectedEntry.sex ? "text-primary" : "text-muted-foreground"}
                             />
                         </div>
 
@@ -272,16 +272,16 @@ export default function CalendarPage() {
                                 <span className="text-xs font-semibold text-muted-foreground block mb-2">Symptome & Stimmung</span>
                                 <div className="flex flex-wrap gap-1.5">
                                     {selectedEntry.symptoms?.map(s => (
-                                        <span key={s} className="px-2 py-1 bg-slate-100 text-slate-700 text-xs rounded-md border border-slate-200">{s}</span>
+                                        <span key={s} className="px-2 py-1 bg-muted text-foreground text-xs rounded-md border border-border">{s}</span>
                                     ))}
                                     {selectedEntry.mood?.map(m => {
                                         const moodLabels: Record<string, string> = {
-                                            happy: '😊 Gut', energetic: '⚡ Energisch', tired: '😴 Müde',
-                                            sad: '😢 Traurig', anxious: '😰 Ängstlich', irritated: '😤 Gereizt',
-                                            moodswings: '🎢 Schwankungen'
+                                            happy: 'Gut', energetic: 'Energisch', tired: 'Müde',
+                                            sad: 'Traurig', anxious: 'Ängstlich', irritated: 'Gereizt',
+                                            moodswings: 'Schwankungen'
                                         };
                                         return (
-                                            <span key={m} className="px-2 py-1 bg-indigo-50 text-indigo-700 text-xs rounded-md border border-indigo-100">{moodLabels[m] || m}</span>
+                                            <span key={m} className="px-2 py-1 bg-accent text-accent-foreground text-xs rounded-md border border-accent/50">{moodLabels[m] || m}</span>
                                         );
                                     })}
                                 </div>
@@ -293,13 +293,13 @@ export default function CalendarPage() {
                             {(selectedEntry.lhTest) && (
                                 <div className="bg-white p-3 rounded-xl border shadow-sm flex items-center justify-between">
                                     <span className="text-xs text-muted-foreground">LH Test</span>
-                                    <span className="text-sm font-semibold text-purple-600 uppercase">{selectedEntry.lhTest === 'peak' ? 'PEAK' : selectedEntry.lhTest === 'positive' ? 'Positiv' : 'Negativ'}</span>
+                                    <span className="text-sm font-semibold text-[var(--phase-luteal)] uppercase">{selectedEntry.lhTest === 'peak' ? 'PEAK' : selectedEntry.lhTest === 'positive' ? 'Positiv' : 'Negativ'}</span>
                                 </div>
                             )}
                             {(selectedEntry.cervix) && (
                                 <div className="bg-white p-3 rounded-xl border shadow-sm flex items-center justify-between">
                                     <span className="text-xs text-muted-foreground">Zervix</span>
-                                    <span className="text-sm font-semibold text-teal-600">
+                                    <span className="text-sm font-semibold text-[var(--phase-fertile)]">
                                         {cervixMap[selectedEntry.cervix] || selectedEntry.cervix}
                                     </span>
                                 </div>
@@ -307,7 +307,7 @@ export default function CalendarPage() {
                         </div>
 
                         {selectedEntry.notes && (
-                            <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 text-sm text-amber-900 italic">
+                            <div className="bg-[var(--phase-ovulation-light)] p-3 rounded-xl border border-[var(--phase-ovulation)]/20 text-sm text-foreground italic">
                                 "{selectedEntry.notes}"
                             </div>
                         )}

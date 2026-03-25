@@ -2,11 +2,33 @@
 import { useCycleData } from '@/hooks/useCycleData';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, ReferenceLine } from 'recharts';
 import { useEffect, useRef, useState, useMemo } from 'react';
+import { ThermometerSun } from 'lucide-react';
+
+interface ChartDataPoint {
+    index: number;
+    dateStr: string;
+    displayDate: string;
+    temp: number | null;
+    rawTemp?: number | null;
+    isPeriod: boolean;
+    isFertile: boolean;
+    isOvulation: boolean;
+    isSpotting: boolean;
+    lh?: string | null;
+    sex?: string | null;
+}
+
+interface PhaseArea {
+    x1: number;
+    x2: number;
+    type: 'period' | 'fertile' | 'purple';
+    label: string;
+}
 
 export default function ChartPage() {
     const { data, isLoaded, engine, cycles: historyCycles } = useCycleData();
-    const [chartData, setChartData] = useState<any[]>([]);
-    const [phaseAreas, setPhaseAreas] = useState<any[]>([]);
+    const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
+    const [phaseAreas, setPhaseAreas] = useState<PhaseArea[]>([]);
 
     const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -52,12 +74,12 @@ export default function ChartPage() {
         setChartData(formattedData);
 
         // 3. Calculate Phase Blocks
-        const newPhaseAreas: any[] = [];
+        const newPhaseAreas: PhaseArea[] = [];
         if (formattedData.length > 0) {
             let currentType: 'period' | 'fertile' | 'purple' = 'purple'; // Default
             let startIndex = 0;
 
-            const getType = (d: any) => {
+            const getType = (d: ChartDataPoint): 'period' | 'fertile' | 'purple' => {
                 if (d.isPeriod) return 'period';
                 if (d.isFertile) return 'fertile';
                 return 'purple';
@@ -99,6 +121,16 @@ export default function ChartPage() {
 
     if (!isLoaded) return <div className="p-8 text-center text-muted-foreground animate-pulse">Laden...</div>;
 
+    if (chartData.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center h-[calc(100vh-200px)] px-6 text-center">
+                <ThermometerSun className="w-12 h-12 text-muted-foreground/40 mb-4" />
+                <h3 className="text-lg font-serif font-semibold mb-2">Noch keine Temperaturdaten</h3>
+                <p className="text-sm text-muted-foreground max-w-xs">Trage deine Basaltemperatur ein, um die Temperaturkurve zu sehen.</p>
+            </div>
+        );
+    }
+
     // Filter current cycle data for the overview bar temp curve
     const currentCycleTemps = useMemo(() => {
         if (!engine) return [];
@@ -134,7 +166,7 @@ export default function ChartPage() {
         <div className="flex flex-col h-[calc(100vh-160px)] px-2">
             {/* Title */}
             <div className="pb-1 pt-1">
-                <h2 className="text-lg font-semibold">Temperaturkurve</h2>
+                <h2 className="text-lg font-serif font-semibold">Temperaturkurve</h2>
                 <p className="text-xs text-muted-foreground">Historie & Phasenverlauf</p>
             </div>
 
@@ -146,16 +178,16 @@ export default function ChartPage() {
                             <LineChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>
                                 <defs>
                                     <linearGradient id="periodGradient" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor="#fca5a5" stopOpacity={0.3} />
-                                        <stop offset="100%" stopColor="#fca5a5" stopOpacity={0} />
+                                        <stop offset="0%" stopColor="var(--phase-period-light)" stopOpacity={0.3} />
+                                        <stop offset="100%" stopColor="var(--phase-period-light)" stopOpacity={0} />
                                     </linearGradient>
                                     <linearGradient id="fertileGradient" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor="#93c5fd" stopOpacity={0.3} />
-                                        <stop offset="100%" stopColor="#93c5fd" stopOpacity={0} />
+                                        <stop offset="0%" stopColor="var(--phase-fertile-light)" stopOpacity={0.3} />
+                                        <stop offset="100%" stopColor="var(--phase-fertile-light)" stopOpacity={0} />
                                     </linearGradient>
                                     <linearGradient id="purpleGradient" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor="#d8b4fe" stopOpacity={0.2} />
-                                        <stop offset="100%" stopColor="#d8b4fe" stopOpacity={0} />
+                                        <stop offset="0%" stopColor="var(--phase-luteal-light)" stopOpacity={0.2} />
+                                        <stop offset="100%" stopColor="var(--phase-luteal-light)" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
 
@@ -210,7 +242,7 @@ export default function ChartPage() {
                                         label={{
                                             value: area.type === 'purple' ? '' : area.label,
                                             position: 'insideBottom',
-                                            fill: area.type === 'period' ? '#ef4444' : area.type === 'fertile' ? '#3b82f6' : '#a855f7',
+                                            fill: area.type === 'period' ? 'var(--phase-period)' : area.type === 'fertile' ? 'var(--phase-fertile)' : 'var(--phase-luteal)',
                                             fontSize: 9,
                                             dy: 8
                                         }}
@@ -224,9 +256,9 @@ export default function ChartPage() {
                                             <ReferenceLine
                                                 key={`ovu-${idx}`}
                                                 x={item.index}
-                                                stroke="#eab308"
+                                                stroke="var(--phase-ovulation)"
                                                 strokeDasharray="3 3"
-                                                label={{ value: '🌼', position: 'top', fill: '#eab308', fontSize: 11 }}
+                                                label={{ value: '◆', position: 'top', fill: 'var(--phase-ovulation)', fontSize: 11 }}
                                             />
                                         );
                                     }
@@ -237,13 +269,13 @@ export default function ChartPage() {
                                 {engine?.currentCycle.coverline && (
                                     <ReferenceLine
                                         y={engine.currentCycle.coverline}
-                                        stroke={engine.currentCycle.coverlineProvisional ? '#9ca3af' : '#ef4444'}
+                                        stroke={engine.currentCycle.coverlineProvisional ? '#9ca3af' : 'var(--phase-period)'}
                                         strokeDasharray={engine.currentCycle.coverlineProvisional ? '6 4' : '0'}
                                         strokeWidth={engine.currentCycle.coverlineProvisional ? 1.5 : 2}
                                         label={{
                                             value: `${engine.currentCycle.coverline.toFixed(2)}°`,
                                             position: 'right',
-                                            fill: engine.currentCycle.coverlineProvisional ? '#9ca3af' : '#ef4444',
+                                            fill: engine.currentCycle.coverlineProvisional ? '#9ca3af' : 'var(--phase-period)',
                                             fontSize: 9,
                                         }}
                                     />
@@ -256,9 +288,9 @@ export default function ChartPage() {
                                     strokeWidth={2.5}
                                     dot={(props: any) => {
                                         const { cx, cy, payload } = props;
-                                        if (payload.sex) return <circle cx={cx} cy={cy} r={3} fill="var(--rose-500)" stroke="pink" strokeWidth={1.5} />;
-                                        if (payload.lh === 'peak' || payload.lh === 'positive') return <circle cx={cx} cy={cy} r={3} fill="var(--purple-500)" stroke="white" strokeWidth={1.5} />;
-                                        if (payload.isOvulation) return <circle cx={cx} cy={cy} r={4} fill="#eab308" stroke="white" strokeWidth={1.5} />;
+                                        if (payload.sex) return <circle cx={cx} cy={cy} r={3} fill="var(--phase-period)" stroke="var(--phase-period-light)" strokeWidth={1.5} />;
+                                        if (payload.lh === 'peak' || payload.lh === 'positive') return <circle cx={cx} cy={cy} r={3} fill="var(--phase-luteal)" stroke="white" strokeWidth={1.5} />;
+                                        if (payload.isOvulation) return <circle cx={cx} cy={cy} r={4} fill="var(--phase-ovulation)" stroke="white" strokeWidth={1.5} />;
                                         return <circle cx={cx} cy={cy} r={2} fill="var(--primary)" stroke="none" />;
                                     }}
                                     connectNulls
@@ -331,12 +363,12 @@ export default function ChartPage() {
                         <div className="relative h-12 rounded-xl overflow-hidden bg-purple-100/30 border border-border/40">
                             {/* Period */}
                             <div
-                                className="absolute top-0 bottom-0 rounded-l-xl bg-rose-300/40"
+                                className="absolute top-0 bottom-0 rounded-l-xl bg-[var(--phase-period-light)]"
                                 style={{ left: '0%', width: `${pct(periodEnd + 1)}%` }}
                             />
                             {/* Fertile Window */}
                             <div
-                                className="absolute top-0 bottom-0 bg-sky-300/35"
+                                className="absolute top-0 bottom-0 bg-[var(--phase-fertile-light)]"
                                 style={{ left: `${pct(fertileStart)}%`, width: `${pct(fertileEnd + 1) - pct(fertileStart)}%` }}
                             />
                             {/* Temperature curve overlay */}
@@ -356,7 +388,7 @@ export default function ChartPage() {
                             {/* Ovulation marker */}
                             {ovuDay && (
                                 <div
-                                    className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-amber-400 border-2 border-amber-600 shadow-sm z-10"
+                                    className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[var(--phase-ovulation)] border-2 border-[var(--phase-ovulation)] shadow-sm z-10"
                                     style={{ left: `calc(${pct(ovuDay)}% - 10px)` }}
                                     title={cc.ovulationConfirmedDate ? 'Eisprung bestätigt' : 'Eisprung (geschätzt)'}
                                 />
@@ -380,27 +412,27 @@ export default function ChartPage() {
                         {/* Info Pills */}
                         <div className="flex flex-wrap gap-1.5 mt-1">
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
-                                📍 Zyklustag {today}/{estLen}
+                                Zyklustag {today}/{estLen}
                             </span>
                             {cc.nextPeriodPred && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 text-[10px] font-medium text-rose-600 border border-rose-200/60">
-                                    🩸 ~{formatDate(cc.nextPeriodPred.mid)}
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--phase-period-light)] text-[10px] font-medium text-[var(--phase-period)] border border-[var(--phase-period)]/20">
+                                    ~{formatDate(cc.nextPeriodPred.mid)}
                                 </span>
                             )}
                             {cc.ovulationPred && (
                                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${cc.ovulationConfirmedDate
-                                    ? 'bg-amber-50 text-amber-700 border-amber-300'
-                                    : 'bg-amber-50/50 text-amber-600 border-amber-200/60'
+                                    ? 'bg-[var(--phase-ovulation-light)] text-[var(--phase-ovulation)] border-[var(--phase-ovulation)]/30'
+                                    : 'bg-[var(--phase-ovulation-light)]/50 text-[var(--phase-ovulation)] border-[var(--phase-ovulation)]/20'
                                     }`}>
-                                    {cc.ovulationConfirmedDate ? '✅' : '🌼'} {cc.ovulationConfirmedDate ? 'Eisprung ✓' : `~${formatDate(cc.ovulationPred.mid)}`}
+                                    {cc.ovulationConfirmedDate ? 'Eisprung ✓' : `~${formatDate(cc.ovulationPred.mid)}`}
                                 </span>
                             )}
                             {cc.coverline && (
                                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${cc.coverlineProvisional
-                                    ? 'bg-gray-50 text-gray-500 border-gray-200 border-dashed'
-                                    : 'bg-red-50 text-red-600 border-red-200'
+                                    ? 'bg-muted text-muted-foreground border-border border-dashed'
+                                    : 'bg-[var(--phase-period-light)] text-[var(--phase-period)] border-[var(--phase-period)]/20'
                                     }`}>
-                                    📏 {cc.coverline.toFixed(2)}°C{cc.coverlineProvisional ? ' (vorl.)' : ''}
+                                    {cc.coverline.toFixed(2)}°C{cc.coverlineProvisional ? ' (vorl.)' : ''}
                                 </span>
                             )}
                         </div>
@@ -415,15 +447,15 @@ export default function ChartPage() {
                     Temperatur
                 </div>
                 <div className="flex items-center gap-1">
-                    <div className="w-2.5 h-2.5 rounded-sm bg-rose-200/60"></div>
+                    <div className="w-2.5 h-2.5 rounded-sm bg-[var(--phase-period-light)]"></div>
                     Periode
                 </div>
                 <div className="flex items-center gap-1">
-                    <div className="w-2.5 h-2.5 rounded-sm bg-sky-200/60"></div>
+                    <div className="w-2.5 h-2.5 rounded-sm bg-[var(--phase-fertile-light)]"></div>
                     Fruchtbar
                 </div>
                 <div className="flex items-center gap-1">
-                    <div className="w-2.5 h-2.5 rounded-full bg-amber-300 border border-amber-500"></div>
+                    <div className="w-2.5 h-2.5 rounded-full bg-[var(--phase-ovulation)] border border-[var(--phase-ovulation)]"></div>
                     Eisprung
                 </div>
                 {engine?.currentCycle.coverline && (

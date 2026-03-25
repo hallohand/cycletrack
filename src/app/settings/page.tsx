@@ -221,12 +221,12 @@ export default function SettingsPage() {
 
     return (
         <div className="space-y-6 pb-24 px-4 pt-6">
-            <h2 className="text-2xl font-bold tracking-tight">Einstellungen</h2>
+            <h2 className="text-2xl font-bold tracking-tight font-serif">Einstellungen</h2>
 
             {/* Cycle Settings */}
-            <Card className="border-none shadow-sm bg-white">
+            <Card className="border-none shadow-sm bg-card">
                 <CardHeader>
-                    <CardTitle>Zyklus-Einstellungen</CardTitle>
+                    <CardTitle className="font-serif">Zyklus-Einstellungen</CardTitle>
                     <CardDescription>Passe die App an deinen Körper an.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -252,9 +252,9 @@ export default function SettingsPage() {
             </Card>
 
             {/* Security Settings */}
-            <Card className="border-none shadow-sm bg-white">
+            <Card className="border-none shadow-sm bg-card">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 font-serif">
                         <Shield className="w-5 h-5" />
                         Sicherheit
                     </CardTitle>
@@ -278,9 +278,9 @@ export default function SettingsPage() {
             </Card>
 
             {/* AI Assistant */}
-            <Card className="border-none shadow-sm bg-white">
+            <Card className="border-none shadow-sm bg-card">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 font-serif">
                         <Sparkles className="w-5 h-5" />
                         Clara
                     </CardTitle>
@@ -302,7 +302,7 @@ export default function SettingsPage() {
                                 href="https://aistudio.google.com/apikey"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-rose-400 underline"
+                                className="text-primary underline"
                             >
                                 Google AI Studio →
                             </a>
@@ -327,17 +327,17 @@ export default function SettingsPage() {
                         {hasAiKey ? 'Key aktualisieren' : 'Key speichern'}
                     </Button>
                     {hasAiKey && (
-                        <p className="text-xs text-green-600 flex items-center gap-1">
-                            ✅ Clara ist aktiv
+                        <p className="text-xs text-[var(--phase-fertile)] flex items-center gap-1">
+                            Clara ist aktiv
                         </p>
                     )}
                 </CardContent>
             </Card>
 
             {/* Data Management */}
-            <Card className="border-none shadow-sm bg-white">
+            <Card className="border-none shadow-sm bg-card">
                 <CardHeader>
-                    <CardTitle>Datenverwaltung</CardTitle>
+                    <CardTitle className="font-serif">Datenverwaltung</CardTitle>
                     <CardDescription>Sicherung und Import.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -449,9 +449,9 @@ export default function SettingsPage() {
             </Card>
 
             {/* Cloud Backup */}
-            <Card className="border-none shadow-sm bg-white">
+            <Card className="border-none shadow-sm bg-card">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 font-serif">
                         <Cloud className="w-5 h-5" />
                         Cloud-Backup
                     </CardTitle>
@@ -496,7 +496,7 @@ export default function SettingsPage() {
             {/* App Info */}
             <Card className="border-none shadow-sm bg-muted/30">
                 <CardHeader className="pb-2">
-                    <CardTitle className="text-base">App Info & Updates</CardTitle>
+                    <CardTitle className="text-base font-serif">App Info & Updates</CardTitle>
                 </CardHeader>
                 <CardContent className="text-xs text-muted-foreground space-y-2">
                     <div className="flex justify-between items-center">
@@ -507,7 +507,7 @@ export default function SettingsPage() {
                         variant="outline"
                         size="sm"
                         onClick={handleForceUpdate}
-                        className="w-full gap-2 mt-2 bg-white hover:bg-gray-100 text-foreground border-gray-200"
+                        className="w-full gap-2 mt-2 bg-card hover:bg-muted text-foreground border-border"
                     >
                         <RotateCcw className="w-3.5 h-3.5" />
                         Update erzwingen

@@ -2,13 +2,28 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Typography: Lora (headings) + Raleway (body) */
+@import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&family=Raleway:wght@300;400;500;600;700&display=swap');
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: 'Raleway', system-ui, sans-serif;
+  --font-serif: 'Lora', Georgia, serif;
   --font-mono: var(--font-geist-mono);
+
+  /* Semantic phase colors */
+  --color-phase-period: var(--phase-period);
+  --color-phase-period-light: var(--phase-period-light);
+  --color-phase-fertile: var(--phase-fertile);
+  --color-phase-fertile-light: var(--phase-fertile-light);
+  --color-phase-ovulation: var(--phase-ovulation);
+  --color-phase-ovulation-light: var(--phase-ovulation-light);
+  --color-phase-luteal: var(--phase-luteal);
+  --color-phase-luteal-light: var(--phase-luteal-light);
+
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -48,95 +63,117 @@
 }
 
 :root {
-  --radius: 1rem; /* More rounded */
-  --background: oklch(0.99 0 0); /* Soft white */
-  --foreground: oklch(0.2 0.02 260);
-  
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2 0.02 260);
-  
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2 0.02 260);
-  
-  /* Rose Pink Theme */
-  --primary: oklch(0.65 0.22 15); /* Rose 500 */
-  --primary-foreground: oklch(0.99 0 0);
-  
-  --secondary: oklch(0.96 0.01 15); /* Rose 50 */
-  --secondary-foreground: oklch(0.45 0.15 15); /* Rose 700 */
-  
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.6 0 0);
-  
-  --accent: oklch(0.96 0.01 15);
-  --accent-foreground: oklch(0.45 0.15 15);
-  
-  --destructive: oklch(0.6 0.2 20);
-  --destructive-foreground: oklch(0.99 0 0);
+  --radius: 0.875rem;
 
-  --border: oklch(0.92 0 0);
-  --input: oklch(0.92 0 0);
-  --ring: oklch(0.65 0.22 15);
-  
-  --chart-1: oklch(0.65 0.22 15);
-  --chart-2: oklch(0.6 0.15 180);
-  --chart-3: oklch(0.8 0.1 80);
-  --chart-4: oklch(0.7 0.15 300);
-  --chart-5: oklch(0.7 0.15 40);
-  
-  --sidebar: oklch(0.99 0 0);
-  --sidebar-foreground: oklch(0.2 0.02 260);
-  --sidebar-primary: oklch(0.65 0.22 15);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.96 0.01 15);
-  --sidebar-accent-foreground: oklch(0.45 0.15 15);
-  --sidebar-border: oklch(0.92 0 0);
-  --sidebar-ring: oklch(0.65 0.22 15);
+  /* Warm off-white background */
+  --background: #FBF8F6;
+  --foreground: #2D2438;
+
+  --card: #FFFFFF;
+  --card-foreground: #2D2438;
+
+  --popover: #FFFFFF;
+  --popover-foreground: #2D2438;
+
+  /* Soft Rose — warm, approachable */
+  --primary: #D4628E;
+  --primary-foreground: #FFFFFF;
+
+  --secondary: #F2E8ED;
+  --secondary-foreground: #8B3A5E;
+
+  --muted: #F5F1EF;
+  --muted-foreground: #7B7388;
+
+  --accent: #E8E4F3;
+  --accent-foreground: #5B4E7A;
+
+  --destructive: #D94F4F;
+  --destructive-foreground: #FFFFFF;
+
+  --border: #EDE8E4;
+  --input: #EDE8E4;
+  --ring: #D4628E;
+
+  /* Phase colors — semantic tokens */
+  --phase-period: #D4628E;
+  --phase-period-light: #F2D1DE;
+  --phase-fertile: #5BA8C8;
+  --phase-fertile-light: #D6EDF7;
+  --phase-ovulation: #E8A87C;
+  --phase-ovulation-light: #FBE8D8;
+  --phase-luteal: #9B8EC4;
+  --phase-luteal-light: #E8E4F3;
+
+  /* Chart colors using phase tokens */
+  --chart-1: #D4628E;
+  --chart-2: #5BA8C8;
+  --chart-3: #E8A87C;
+  --chart-4: #9B8EC4;
+  --chart-5: #7CB88A;
+
+  --sidebar: #FBF8F6;
+  --sidebar-foreground: #2D2438;
+  --sidebar-primary: #D4628E;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F2E8ED;
+  --sidebar-accent-foreground: #8B3A5E;
+  --sidebar-border: #EDE8E4;
+  --sidebar-ring: #D4628E;
 }
 
 .dark {
-  --background: oklch(0.1 0.02 260);
-  --foreground: oklch(0.98 0 0);
-  
-  --card: oklch(0.15 0.02 260);
-  --card-foreground: oklch(0.98 0 0);
-  
-  --popover: oklch(0.15 0.02 260);
-  --popover-foreground: oklch(0.98 0 0);
-  
-  --primary: oklch(0.7 0.2 15);
-  --primary-foreground: oklch(0.1 0 0);
-  
-  --secondary: oklch(0.2 0.05 15);
-  --secondary-foreground: oklch(0.9 0.05 15);
-  
-  --muted: oklch(0.2 0 0);
-  --muted-foreground: oklch(0.7 0 0);
-  
-  --accent: oklch(0.2 0.05 15);
-  --accent-foreground: oklch(0.9 0.05 15);
-  
-  --destructive: oklch(0.6 0.2 20);
-  --destructive-foreground: oklch(0.98 0 0);
-  
-  --border: oklch(0.25 0 0);
-  --input: oklch(0.25 0 0);
-  --ring: oklch(0.7 0.2 15);
-  
-  --chart-1: oklch(0.7 0.2 15);
-  --chart-2: oklch(0.6 0.15 180);
-  --chart-3: oklch(0.8 0.1 80);
-  --chart-4: oklch(0.7 0.15 300);
-  --chart-5: oklch(0.7 0.15 40);
-  
-  --sidebar: oklch(0.15 0.02 260);
-  --sidebar-foreground: oklch(0.98 0 0);
-  --sidebar-primary: oklch(0.7 0.2 15);
-  --sidebar-primary-foreground: oklch(0.1 0 0);
-  --sidebar-accent: oklch(0.2 0.05 15);
-  --sidebar-accent-foreground: oklch(0.9 0.05 15);
-  --sidebar-border: oklch(0.25 0 0);
-  --sidebar-ring: oklch(0.7 0.2 15);
+  --background: #1A1520;
+  --foreground: #F0ECF4;
+
+  --card: #231E2C;
+  --card-foreground: #F0ECF4;
+
+  --popover: #231E2C;
+  --popover-foreground: #F0ECF4;
+
+  --primary: #E88AAE;
+  --primary-foreground: #1A1520;
+
+  --secondary: #2E2639;
+  --secondary-foreground: #E8B8CC;
+
+  --muted: #2A2335;
+  --muted-foreground: #9B93A8;
+
+  --accent: #2E2639;
+  --accent-foreground: #C4B5FD;
+
+  --destructive: #E85555;
+  --destructive-foreground: #F0ECF4;
+
+  --border: #3A3245;
+  --input: #3A3245;
+  --ring: #E88AAE;
+
+  --phase-period: #E88AAE;
+  --phase-period-light: #3D2535;
+  --phase-fertile: #6DBAD8;
+  --phase-fertile-light: #1E3340;
+  --phase-ovulation: #F0B88C;
+  --phase-ovulation-light: #3D2E20;
+  --phase-luteal: #B0A4D4;
+  --phase-luteal-light: #2E2639;
+
+  --chart-1: #E88AAE;
+  --chart-2: #6DBAD8;
+  --chart-3: #F0B88C;
+  --chart-4: #B0A4D4;
+  --chart-5: #8FCC9A;
+
+  --sidebar: #1A1520;
+  --sidebar-foreground: #F0ECF4;
+  --sidebar-primary: #E88AAE;
+  --sidebar-primary-foreground: #1A1520;
+  --sidebar-accent: #2E2639;
+  --sidebar-accent-foreground: #E8B8CC;
+  --sidebar-border: #3A3245;
+  --sidebar-ring: #E88AAE;
 }
 
 @layer base {
@@ -145,5 +182,19 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Raleway', system-ui, sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Lora', Georgia, serif;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -87,17 +87,17 @@ export function AiSummaryCard() {
     if (!summary && !isGenerating) return null;
 
     return (
-        <div className="bg-gradient-to-br from-rose-50 to-amber-50 rounded-2xl p-4 relative">
+        <div className="bg-gradient-to-br from-secondary to-[var(--phase-ovulation-light)] rounded-2xl p-4 relative">
             <div className="flex items-center gap-1.5 mb-2">
-                <Sparkles className="w-4 h-4 text-rose-400" />
-                <span className="text-xs font-semibold text-rose-600">Dein aktueller Status</span>
+                <Sparkles className="w-4 h-4 text-primary" />
+                <span className="text-xs font-semibold text-primary">Dein aktueller Status</span>
             </div>
 
             {isGenerating && !summary ? (
                 <div className="flex items-center gap-2 py-2">
-                    <div className="w-1.5 h-1.5 bg-rose-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <div className="w-1.5 h-1.5 bg-rose-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="w-1.5 h-1.5 bg-rose-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                     <span className="text-xs text-muted-foreground ml-1">Analysiere deine Daten...</span>
                 </div>
             ) : (
@@ -106,7 +106,7 @@ export function AiSummaryCard() {
                         {summary}
                     </p>
                     {isGenerating && (
-                        <p className="text-[10px] text-rose-400 mt-1 animate-pulse">Aktualisiere...</p>
+                        <p className="text-[10px] text-primary mt-1 animate-pulse">Aktualisiere...</p>
                     )}
                 </>
             )}
@@ -117,7 +117,7 @@ export function AiSummaryCard() {
                 )}
                 <Link
                     href="/assistant"
-                    className="inline-flex items-center gap-0.5 text-xs font-medium text-rose-500 hover:text-rose-600 transition-colors"
+                    className="inline-flex items-center gap-0.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
                 >
                     Mehr erfahren <ChevronRight className="w-3 h-3" />
                 </Link>
