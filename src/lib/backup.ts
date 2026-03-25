@@ -1,4 +1,5 @@
 import { CycleData, DEFAULT_CYCLE_DATA } from './types';
+import { validateImportData } from './schemas';
 
 const BACKUP_KEY_1 = 'cycletrack_backup_1';
 const BACKUP_KEY_2 = 'cycletrack_backup_2';
@@ -16,24 +17,15 @@ interface BackupSlot {
     data: CycleData;
 }
 
-export function rotateLocalBackup(currentJson: string) {
+export function rotateLocalBackup(currentData: CycleData) {
     try {
         const now = new Date().toISOString();
-        const currentData = JSON.parse(currentJson); // Validate & parse
-
-        // Get previous backup 1
         const prev1Raw = localStorage.getItem(BACKUP_KEY_1);
-
         if (prev1Raw) {
-            // Move 1 to 2
             localStorage.setItem(BACKUP_KEY_2, prev1Raw);
         }
-
-        // Save new 1
         const newSlot: BackupSlot = { timestamp: now, data: currentData };
         localStorage.setItem(BACKUP_KEY_1, JSON.stringify(newSlot));
-
-        // Remove old global timestamp key as it's deprecated
         localStorage.removeItem(BACKUP_TIMESTAMP_KEY);
     } catch (e) {
         console.warn('Backup rotation failed:', e);
@@ -188,7 +180,7 @@ export function clearGistConfig() {
     localStorage.removeItem(GIST_ID_KEY);
 }
 
-export async function syncToGist(data: CycleData): Promise<{ success: boolean; gistId?: string; error?: string }> {
+export async function syncToGist(data: CycleData, retryCount = 0): Promise<{ success: boolean; gistId?: string; error?: string }> {
     const { token, gistId } = getGistConfig();
     if (!token) return { success: false, error: 'Kein GitHub Token konfiguriert' };
 
@@ -212,9 +204,11 @@ export async function syncToGist(data: CycleData): Promise<{ success: boolean; g
 
             if (!res.ok) {
                 if (res.status === 404) {
-                    // Gist was deleted, create a new one
+                    if (retryCount > 0) {
+                        return { success: false, error: 'Gist konnte nicht erstellt werden' };
+                    }
                     localStorage.removeItem(GIST_ID_KEY);
-                    return syncToGist(data);
+                    return syncToGist(data, retryCount + 1);
                 }
                 const err = await res.json();
                 return { success: false, error: err.message || `HTTP ${res.status}` };
@@ -245,8 +239,9 @@ export async function syncToGist(data: CycleData): Promise<{ success: boolean; g
             localStorage.setItem(GIST_ID_KEY, gist.id);
             return { success: true, gistId: gist.id };
         }
-    } catch (e: any) {
-        return { success: false, error: e.message || 'Netzwerkfehler' };
+    } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : 'Netzwerkfehler';
+        return { success: false, error: message };
     }
 }
 
@@ -267,12 +262,14 @@ export async function restoreFromGist(): Promise<{ data: CycleData | null; error
         const file = gist.files['cycletrack_backup.json'];
         if (!file) return { data: null, error: 'Backup-Datei nicht im Gist gefunden' };
 
-        const parsed = JSON.parse(file.content);
-        if (!parsed.entries) return { data: null, error: 'Ungültiges Backup-Format' };
-
-        return { data: { ...DEFAULT_CYCLE_DATA, ...parsed } };
-    } catch (e: any) {
-        return { data: null, error: e.message || 'Netzwerkfehler' };
+        const validation = validateImportData(file.content);
+        if (!validation.success) {
+            return { data: null, error: 'Backup-Daten ungültig: ' + validation.error };
+        }
+        return { data: { ...DEFAULT_CYCLE_DATA, ...validation.data } };
+    } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : 'Netzwerkfehler';
+        return { data: null, error: message };
     }
 }
 

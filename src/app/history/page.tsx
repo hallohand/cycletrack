@@ -1,23 +1,11 @@
 'use client';
 import { useCycleData } from '@/hooks/useCycleData';
-import { groupCycles } from '@/lib/history-utils';
-import { runEngine } from '@/lib/cycle-calculations';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { PDFExportButton } from '@/components/history/PDFExportButton';
 
 export default function HistoryPage() {
-    const { data, isLoaded } = useCycleData();
+    const { data, isLoaded, engine, cycles } = useCycleData();
     const [tab, setTab] = useState<'history' | 'forecast'>('history');
-
-    const cycles = useMemo(() => {
-        if (!data?.entries) return [];
-        return groupCycles(data.entries);
-    }, [data?.entries]);
-
-    const engine = useMemo(() => {
-        if (!data?.entries || Object.keys(data.entries).length === 0) return null;
-        return runEngine(data);
-    }, [data]);
 
     if (!isLoaded) return <div className="p-8 text-center text-muted-foreground animate-pulse">Laden...</div>;
 

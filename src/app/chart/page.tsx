@@ -2,22 +2,13 @@
 import { useCycleData } from '@/hooks/useCycleData';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, ReferenceLine } from 'recharts';
 import { useEffect, useRef, useState, useMemo } from 'react';
-import { runEngine } from '@/lib/cycle-calculations';
-
-import { groupCycles } from '@/lib/history-utils'; // Need to import this
 
 export default function ChartPage() {
-    const { data, isLoaded } = useCycleData();
+    const { data, isLoaded, engine, cycles: historyCycles } = useCycleData();
     const [chartData, setChartData] = useState<any[]>([]);
     const [phaseAreas, setPhaseAreas] = useState<any[]>([]);
 
     const scrollRef = useRef<HTMLDivElement>(null);
-
-    // Run engine to get coverline
-    const engine = useMemo(() => {
-        if (!data?.entries || Object.keys(data.entries).length === 0) return null;
-        return runEngine(data);
-    }, [data]);
 
     useEffect(() => {
         if (!isLoaded) return;
@@ -30,9 +21,8 @@ export default function ChartPage() {
         const relevantEntries = entries.filter(e => new Date(e.date) >= startDate);
 
         // 1. Analyze History to get Phase Info (Fertile/Period/Ovulation) for ALL dates
-        const cycles = groupCycles(data.entries);
         const dayInfoMap = new Map<string, { isPeriod: boolean, isFertile: boolean, isOvulation: boolean }>();
-        cycles.forEach(c => {
+        historyCycles.forEach(c => {
             c.days.forEach(d => {
                 dayInfoMap.set(d.date, {
                     isPeriod: !!d.isPeriod,
@@ -105,7 +95,7 @@ export default function ChartPage() {
         }
         setPhaseAreas(newPhaseAreas);
 
-    }, [data, isLoaded]);
+    }, [data, isLoaded, historyCycles]);
 
     if (!isLoaded) return <div className="p-8 text-center text-muted-foreground animate-pulse">Laden...</div>;
 

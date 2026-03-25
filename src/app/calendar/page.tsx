@@ -4,18 +4,31 @@
 import { useCycleData } from '@/hooks/useCycleData';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
-import { runEngine } from '@/lib/cycle-calculations';
-import { groupCycles } from '@/lib/history-utils';
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { de } from 'date-fns/locale';
 import { addMonths, subMonths } from 'date-fns';
-import { Info, Heart, Thermometer, Droplet, Activity, Plus, Pencil, Zap } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Info, Heart, Thermometer, Droplet, Activity, Plus, Pencil, Zap, LucideIcon } from 'lucide-react';
+import { cn, toLocalISO } from '@/lib/utils';
 import { EntryDrawer } from '@/components/entry/EntryDrawer';
 import { CycleEntry } from '@/lib/types';
 
+interface DetailItemProps {
+    icon: LucideIcon;
+    label: string;
+    value: string;
+    color: string;
+}
+
+const DetailItem = ({ icon: Icon, label, value, color }: DetailItemProps) => (
+    <div className="flex flex-col items-center bg-white p-2.5 rounded-xl border shadow-sm">
+        <Icon className={`w-5 h-5 mb-1 ${color}`} />
+        <span className="text-xs font-semibold text-center leading-tight truncate w-full">{value}</span>
+        <span className="text-[10px] text-muted-foreground">{label}</span>
+    </div>
+);
+
 export default function CalendarPage() {
-    const { data, isLoaded } = useCycleData();
+    const { data, isLoaded, engine, cycles: historyCycles } = useCycleData();
     const [date, setDate] = useState<Date | undefined>(new Date());
     const [month, setMonth] = useState<Date>(new Date());
 
@@ -55,15 +68,6 @@ export default function CalendarPage() {
             }, 150);
         }
     }, []);
-
-    const engine = useMemo(() => isLoaded ? runEngine(data) : null, [data, isLoaded]);
-    const historyCycles = useMemo(() => isLoaded ? groupCycles(data.entries) : [], [data, isLoaded]);
-
-    const toLocalISO = (d: Date) => {
-        const offset = d.getTimezoneOffset();
-        const local = new Date(d.getTime() - (offset * 60000));
-        return local.toISOString().split('T')[0];
-    };
 
     const safeSelectedDateStr = date ? toLocalISO(date) : '';
     const selectedEntry = safeSelectedDateStr ? data.entries[safeSelectedDateStr] : null;
@@ -176,14 +180,6 @@ export default function CalendarPage() {
         if (isAnimating && slideDirection === 'right') return 'translate-x-8 opacity-0';
         return 'translate-x-0 opacity-100';
     };
-
-    const DetailItem = ({ icon: Icon, label, value, color }: any) => (
-        <div className="flex flex-col items-center bg-white p-2.5 rounded-xl border shadow-sm">
-            <Icon className={`w-5 h-5 mb-1 ${color}`} />
-            <span className="text-xs font-semibold text-center leading-tight truncate w-full">{value}</span>
-            <span className="text-[10px] text-muted-foreground">{label}</span>
-        </div>
-    );
 
     const periodMap: Record<string, string> = { light: 'Leicht', medium: 'Mittel', heavy: 'Stark', spotting: 'Schmier' };
     const painMap: Record<string, string> = { light: 'Leicht', medium: 'Mittel', strong: 'Stark', extreme: 'Extrem' };

@@ -6,7 +6,8 @@ const PeriodFlowSchema = z.enum(['light', 'medium', 'heavy', 'spotting']);
 const CervixSchema = z.enum(['dry', 'sticky', 'creamy', 'watery', 'eggwhite']);
 const LHTestSchema = z.enum(['negative', 'positive', 'peak']);
 const SexSchema = z.enum(['protected', 'unprotected', 'none']);
-const MoodSchema = z.enum(['happy', 'sad', 'anxious', 'irritated', 'energetic', 'tired']);
+const MoodSchema = z.enum(['happy', 'sad', 'anxious', 'irritated', 'energetic', 'tired', 'moodswings']);
+const PainSchema = z.enum(['light', 'medium', 'strong', 'extreme']);
 
 const CycleEntrySchema = z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Datum muss YYYY-MM-DD Format haben'),
@@ -16,18 +17,20 @@ const CycleEntrySchema = z.object({
     cervix: CervixSchema.nullable().optional(),
     lhTest: LHTestSchema.nullable().optional(),
     sex: SexSchema.nullable().optional(),
-    symptoms: z.array(z.string()).optional(),
+    symptoms: z.array(z.string().max(100)).max(20).optional(),
     mood: z.array(MoodSchema).optional(),
+    pain: PainSchema.nullable().optional(),
     notes: z.string().max(1000).optional(),
     isOvulation: z.boolean().optional(),
-}).passthrough(); // Allow unknown fields for forward compatibility
+}).strip();
 
 const CycleDataSchema = z.object({
     entries: z.record(z.string(), CycleEntrySchema),
     cycleLength: z.number().int().min(15).max(60).optional().default(28),
     periodLength: z.number().int().min(1).max(15).optional().default(5),
     lutealPhase: z.number().int().min(5).max(25).optional().default(14),
-}).passthrough();
+    onboardingCompleted: z.boolean().optional(),
+}).strip();
 
 export type ValidationResult = {
     success: true;

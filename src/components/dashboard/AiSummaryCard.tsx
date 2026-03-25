@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useCycleData } from '@/hooks/useCycleData';
-import { runEngine } from '@/lib/cycle-calculations';
 import { generateSummary, getApiKey } from '@/lib/gemini-client';
 import { buildSystemPrompt, buildSummaryPrompt, hashEntries } from '@/lib/llm-context';
 import { Sparkles, ChevronRight } from 'lucide-react';
@@ -16,17 +15,12 @@ interface CachedSummary {
 }
 
 export function AiSummaryCard() {
-    const { data, isLoaded } = useCycleData();
+    const { data, isLoaded, engine } = useCycleData();
     const [summary, setSummary] = useState<string>('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [lastUpdated, setLastUpdated] = useState<string>('');
 
     const apiKey = useMemo(() => getApiKey(), []);
-
-    const engine = useMemo(() => {
-        if (!data?.entries || Object.keys(data.entries).length === 0) return null;
-        return runEngine(data);
-    }, [data]);
 
     const currentHash = useMemo(() => {
         if (!data?.entries) return '';
@@ -57,30 +51,34 @@ export function AiSummaryCard() {
 
         const generate = async () => {
             setIsGenerating(true);
-            const systemPrompt = buildSystemPrompt(data, engine);
-            const userPrompt = buildSummaryPrompt();
+            try {
+                const systemPrompt = buildSystemPrompt(data, engine);
+                const userPrompt = buildSummaryPrompt();
 
-            const result = await generateSummary(apiKey, systemPrompt, userPrompt);
+                const result = await generateSummary(apiKey, systemPrompt, userPrompt);
 
-            if (result.text) {
-                const now = new Date().toLocaleString('de-DE', {
-                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-                });
+                if (result.text) {
+                    const now = new Date().toLocaleString('de-DE', {
+                        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                    });
 
-                setSummary(result.text);
-                setLastUpdated(now);
+                    setSummary(result.text);
+                    setLastUpdated(now);
 
-                // Cache
-                localStorage.setItem(CACHE_KEY, JSON.stringify({ text: result.text, timestamp: now }));
-                localStorage.setItem(HASH_KEY, currentHash);
+                    // Cache
+                    localStorage.setItem(CACHE_KEY, JSON.stringify({ text: result.text, timestamp: now }));
+                    localStorage.setItem(HASH_KEY, currentHash);
+                }
+            } catch (e) {
+                console.warn('AI summary generation failed:', e);
+            } finally {
+                setIsGenerating(false);
             }
-            // If error, keep showing old cached summary
-
-            setIsGenerating(false);
         };
 
         generate();
-    }, [apiKey, data, engine, currentHash, isLoaded]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [apiKey, currentHash, isLoaded]);
 
     // Don't render if no API key
     if (!apiKey || !isLoaded) return null;

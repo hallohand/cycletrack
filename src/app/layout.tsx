@@ -9,8 +9,6 @@ export const metadata: Metadata = {
   viewport: {
     width: 'device-width',
     initialScale: 1,
-    maximumScale: 1,
-    userScalable: false, // Prevent zooming usually for PWA feel
   },
   themeColor: '#FF6B9D',
   icons: {
@@ -35,6 +33,7 @@ import UpdateNotification from '@/components/UpdateNotification';
 import { AppLock } from "@/components/guard/AppLock";
 
 import { CycleProvider } from '@/components/CycleContext';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 export default function RootLayout({
   children,
@@ -45,7 +44,10 @@ export default function RootLayout({
     <html lang="de" className="h-[100dvh]">
       <head>
         <meta name="theme-color" content="#fff1f2" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
+        <meta
+          httpEquiv="Content-Security-Policy"
+          content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://generativelanguage.googleapis.com https://api.github.com; img-src 'self' data:; font-src 'self';"
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -59,13 +61,15 @@ export default function RootLayout({
         />
       </head>
       <body className={"h-full overflow-y-auto overscroll-none touch-pan-x touch-pan-y"}>
-        <CycleProvider>
-          <AppLock>
-            <AppLayout>{children}</AppLayout>
-          </AppLock>
-          <Toaster position="top-center" />
-          <UpdateNotification />
-        </CycleProvider>
+        <ErrorBoundary>
+          <CycleProvider>
+            <AppLock>
+              <AppLayout>{children}</AppLayout>
+            </AppLock>
+            <Toaster position="top-center" />
+            <UpdateNotification />
+          </CycleProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

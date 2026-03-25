@@ -1,11 +1,10 @@
 'use client';
 import { useCycleData } from '@/hooks/useCycleData';
-import { runEngine } from '@/lib/cycle-calculations';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion } from 'framer-motion';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Calendar as CalendarIcon, Activity, Droplets, Thermometer, ChevronRight, AlertCircle, CheckCircle2, Leaf, Siren } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -13,18 +12,12 @@ import { Progress } from "@/components/ui/progress"
 import { AiSummaryCard } from '@/components/dashboard/AiSummaryCard';
 
 export default function Dashboard() {
-    const { data, isLoaded } = useCycleData();
+    const { data, isLoaded, engine } = useCycleData();
     const [today, setToday] = useState<Date | null>(null);
 
     useEffect(() => {
         setToday(new Date());
     }, []);
-
-    // Must be before ANY early return (Rules of Hooks)
-    const engine = useMemo(() => {
-        if (!data?.entries || Object.keys(data.entries).length === 0) return null;
-        return runEngine(data);
-    }, [data]);
 
     if (!isLoaded || !today || !engine) return <div className="p-8 text-center text-muted-foreground animate-pulse">Lade CycleTrack Engine...</div>;
 

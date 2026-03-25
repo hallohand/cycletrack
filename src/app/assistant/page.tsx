@@ -1,7 +1,6 @@
 'use client';
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useCycleData } from '@/hooks/useCycleData';
-import { runEngine } from '@/lib/cycle-calculations';
 import { streamChat, getApiKey, ChatMessage } from '@/lib/gemini-client';
 import { buildSystemPrompt } from '@/lib/llm-context';
 import { updateMemoryAfterChat, getMemory, setMemory } from '@/lib/ai-memory';
@@ -82,7 +81,7 @@ function formatInline(text: string): React.ReactNode {
 }
 
 export default function AssistantPage() {
-    const { data, isLoaded } = useCycleData();
+    const { data, isLoaded, engine } = useCycleData();
     const [messages, setMessages] = useState<DisplayMessage[]>(() => {
         if (typeof window === 'undefined') return [];
         try {
@@ -99,11 +98,6 @@ export default function AssistantPage() {
     const [memoryText, setMemoryText] = useState('');
 
     const apiKey = useMemo(() => getApiKey(), []);
-
-    const engine = useMemo(() => {
-        if (!data?.entries || Object.keys(data.entries).length === 0) return null;
-        return runEngine(data);
-    }, [data]);
 
     const systemPrompt = useMemo(() => {
         if (!data || !engine) return '';

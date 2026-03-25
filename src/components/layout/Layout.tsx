@@ -1,14 +1,14 @@
 'use client';
 import Link from 'next/link';
-import { Home, Plus, Calendar, BarChart2, Settings, List, Sparkles } from 'lucide-react';
+import { Home, Plus, Calendar, BarChart2, Settings, List, Sparkles, LucideIcon } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import PageTransition from './PageTransition';
 import { ReactNode } from 'react';
 import { EntryDrawer } from '@/components/entry/EntryDrawer';
 import { Button } from '@/components/ui/button';
 
-const NavItem = ({ href, icon: Icon, label, isActive }: { href: string; icon: any; label: string; isActive: boolean }) => (
-    <Link href={href} className="flex flex-col items-center justify-center w-full h-full space-y-1 relative">
+const NavItem = ({ href, icon: Icon, label, isActive }: { href: string; icon: LucideIcon; label: string; isActive: boolean }) => (
+    <Link href={href} aria-label={label} className="flex flex-col items-center justify-center w-full h-full space-y-1 relative">
         <div className={`p-2 rounded-xl transition-all duration-300 ${isActive ? 'bg-primary text-primary-foreground scale-110 shadow-lg shadow-primary/20' : 'text-muted-foreground hover:bg-muted'}`}>
             <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
         </div>
@@ -29,12 +29,12 @@ export default function Layout({ children }: { children: ReactNode }) {
                 <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-primary to-rose-400 bg-clip-text text-transparent">CycleTrack</h1>
                 <div className="flex items-center gap-1">
                     <Link href="/assistant">
-                        <Button variant="ghost" size="icon" className={`rounded-full ${pathname === '/assistant' ? 'text-rose-400' : ''}`}>
+                        <Button aria-label="KI-Assistent" variant="ghost" size="icon" className={`rounded-full ${pathname === '/assistant' ? 'text-rose-400' : ''}`}>
                             <Sparkles className="w-5 h-5" />
                         </Button>
                     </Link>
                     <Link href="/settings">
-                        <Button variant="ghost" size="icon" className="rounded-full">
+                        <Button aria-label="Einstellungen" variant="ghost" size="icon" className="rounded-full">
                             <Settings className="w-5 h-5 text-muted-foreground" />
                         </Button>
                     </Link>
@@ -54,7 +54,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 {/* Center Action Button (Triggers Drawer) */}
                 <div className="-mt-8">
                     <EntryDrawer>
-                        <button className="h-14 w-14 bg-gradient-to-br from-primary to-rose-400 rounded-full shadow-lg shadow-primary/40 flex items-center justify-center text-white active:scale-95 transition-transform ring-4 ring-background">
+                        <button aria-label="Neuer Eintrag" className="h-14 w-14 bg-gradient-to-br from-primary to-rose-400 rounded-full shadow-lg shadow-primary/40 flex items-center justify-center text-white active:scale-95 transition-transform ring-4 ring-background">
                             <Plus size={28} strokeWidth={2.5} />
                         </button>
                     </EntryDrawer>

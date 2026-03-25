@@ -1,11 +1,22 @@
 import { CycleData, CycleEntry, PeriodFlow, CervixType, LHTestResult, SexType } from './types';
 
+const MAX_CSV_SIZE = 2 * 1024 * 1024; // 2MB
+const MAX_CSV_ROWS = 5000;
+
 export function parseFemometerCSV(csvText: string): Record<string, CycleEntry> {
+    if (csvText.length > MAX_CSV_SIZE) {
+        throw new Error(`CSV-Datei zu groß (max ${MAX_CSV_SIZE / 1024 / 1024}MB)`);
+    }
+
     const lines = csvText.trim().split('\n');
     const entries: Record<string, CycleEntry> = {};
 
     // Skip header (line 0)
     for (let i = 1; i < lines.length; i++) {
+        if (Object.keys(entries).length >= MAX_CSV_ROWS) {
+            console.warn(`CSV Import auf ${MAX_CSV_ROWS} Einträge begrenzt`);
+            break;
+        }
         // Handle potential quoted fields containing newlines (simplified CSV split)
         // For this specific CSV structure, simple split by comma might fail if "Symptome" contains commas within quotes.
         // But looking at the sample: "Krämpfe, Brustschmerzen" is quoted.
@@ -30,6 +41,8 @@ export function parseFemometerCSV(csvText: string): Record<string, CycleEntry> {
         // Parse Date: DD.MM.YYYY -> YYYY-MM-DD
         const [d, m, y] = dateStr.split('.');
         const isoDate = `${y}-${m}-${d}`;
+
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) continue;
 
         const entry: CycleEntry = { date: isoDate };
 

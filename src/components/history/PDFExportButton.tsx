@@ -1,19 +1,26 @@
 'use client';
 
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { FileText } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { toast } from 'sonner';
+import type { CycleGroup } from '@/lib/history-utils';
 
 interface PDFExportButtonProps {
-    cycles: any[]; // Ideally typed with the return of groupCycles
+    cycles: CycleGroup[];
 }
 
 export function PDFExportButton({ cycles }: PDFExportButtonProps) {
+    const [isExporting, setIsExporting] = useState(false);
 
-    const handleExport = () => {
+    const handleExport = async () => {
+        setIsExporting(true);
         try {
+            const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+                import('jspdf'),
+                import('jspdf-autotable'),
+            ]);
+
             const doc = new jsPDF();
             const dateStr = new Date().toLocaleDateString('de-DE');
 
@@ -86,11 +93,13 @@ export function PDFExportButton({ cycles }: PDFExportButtonProps) {
         } catch (e) {
             console.error(e);
             toast.error('Fehler beim Erstellen des PDFs');
+        } finally {
+            setIsExporting(false);
         }
     };
 
     return (
-        <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
+        <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting} className="gap-2">
             <FileText className="w-4 h-4" />
             PDF Export
         </Button>
