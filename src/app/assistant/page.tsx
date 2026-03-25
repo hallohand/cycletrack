@@ -4,8 +4,11 @@ import { useCycleData } from '@/hooks/useCycleData';
 import { streamChat, getApiKey, ChatMessage } from '@/lib/gemini-client';
 import { buildSystemPrompt } from '@/lib/llm-context';
 import { updateMemoryAfterChat, getMemory, setMemory } from '@/lib/ai-memory';
-import { Send, Sparkles, AlertTriangle, Settings, Trash2, BookOpen, X } from 'lucide-react';
+import { Send, Sparkles, AlertTriangle, Settings, Trash2, BookOpen } from 'lucide-react';
 import Link from 'next/link';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const CHAT_STORAGE_KEY = 'cycletrack_ai_chat';
 const SLIDING_WINDOW = 6; // Send only last N messages to API
@@ -113,16 +116,6 @@ export default function AssistantPage() {
         }
     }, [apiKey]);
 
-    // Escape key closes memory modal
-    useEffect(() => {
-        if (!showMemory) return;
-        const handleKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') setShowMemory(false);
-        };
-        document.addEventListener('keydown', handleKey);
-        return () => document.removeEventListener('keydown', handleKey);
-    }, [showMemory]);
-
     // Save messages to localStorage whenever they change (skip streaming)
     useEffect(() => {
         const completed = messages.filter(m => !m.isStreaming);
@@ -211,7 +204,13 @@ export default function AssistantPage() {
         setShowPrivacyNotice(false);
     };
 
-    if (!isLoaded) return <div className="p-8 text-center text-muted-foreground animate-pulse">Laden...</div>;
+    if (!isLoaded) return (
+        <div className="flex flex-col gap-4 px-4 pt-6 animate-in fade-in duration-300">
+            <Skeleton className="w-32 h-6 rounded-xl" />
+            <Skeleton className="w-full h-[200px] rounded-2xl" />
+            <Skeleton className="w-48 h-10 rounded-2xl" />
+        </div>
+    );
 
     // No API key set
     if (!apiKey) {
@@ -289,7 +288,7 @@ export default function AssistantPage() {
     return (
         <div className="flex flex-col h-[calc(100dvh-200px)] overflow-hidden">
             {/* Header */}
-            <div className="px-4 py-2 shrink-0 border-b border-border/30">
+            <div className="px-4 py-2 shrink-0 border-b border-border/30 shadow-soft">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Sparkles className="w-5 h-5 text-primary" />
@@ -316,10 +315,12 @@ export default function AssistantPage() {
             {/* Messages */}
             <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3 scrollbar-hide">
                 {messages.length === 0 && (
-                    <div className="text-center py-8">
-                        <Sparkles className="w-8 h-8 text-primary/30 mx-auto mb-3" />
-                        <p className="text-sm text-muted-foreground mb-1">Frag mich etwas über deinen Zyklus!</p>
-                        <p className="text-[10px] text-muted-foreground">Oder nutze die Vorschläge unten</p>
+                    <div className="text-center py-12">
+                        <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Sparkles className="w-8 h-8 text-primary" />
+                        </div>
+                        <p className="text-base font-serif font-semibold mb-1">Frag mich alles!</p>
+                        <p className="text-xs text-muted-foreground">Ich analysiere deine Zyklusdaten</p>
                     </div>
                 )}
 
@@ -329,9 +330,9 @@ export default function AssistantPage() {
                         className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                         <div
-                            className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed ${msg.role === 'user'
-                                ? 'bg-primary text-primary-foreground rounded-br-md'
-                                : 'bg-muted text-foreground rounded-bl-md'
+                            className={`max-w-[85%] px-3 py-2 text-sm leading-relaxed shadow-soft ${msg.role === 'user'
+                                ? 'bg-primary text-primary-foreground rounded-3xl rounded-br-lg'
+                                : 'bg-muted text-foreground rounded-3xl rounded-bl-lg'
                                 }`}
                         >
                             {msg.role === 'assistant' ? renderMarkdown(msg.text) : msg.text}
@@ -345,15 +346,15 @@ export default function AssistantPage() {
 
             {/* Quick Actions — always visible */}
             <div className="px-4 py-1.5 shrink-0">
-                <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+                <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4">
                     {QUICK_ACTIONS.map((action, i) => (
                         <button
                             key={i}
                             onClick={() => sendMessage(action.prompt)}
                             disabled={isLoading}
-                            className="shrink-0 px-3 py-1.5 bg-secondary text-secondary-foreground rounded-full text-xs font-medium hover:bg-secondary/80 transition-colors disabled:opacity-50 whitespace-nowrap"
+                            className="flex-shrink-0 w-36 bg-card border border-border/50 rounded-2xl p-3 text-left shadow-soft active:scale-[0.97] transition-transform disabled:opacity-50"
                         >
-                            {action.label}
+                            <span className="text-xs font-medium text-foreground leading-tight line-clamp-2">{action.label}</span>
                         </button>
                     ))}
                 </div>
@@ -361,7 +362,7 @@ export default function AssistantPage() {
 
             {/* Input */}
             <form onSubmit={handleSubmit} className="px-4 py-2 shrink-0 border-t border-border/30">
-                <div className="flex items-center gap-2 bg-muted rounded-full px-3 py-1.5">
+                <div className="flex items-center gap-2 bg-card border border-border/50 rounded-2xl px-4 py-2 shadow-soft">
                     <input
                         ref={inputRef}
                         type="text"
@@ -374,48 +375,40 @@ export default function AssistantPage() {
                     <button
                         type="submit"
                         disabled={!input.trim() || isLoading}
-                        className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center shrink-0 disabled:opacity-30 hover:bg-primary/90 transition-colors"
+                        className="w-8 h-8 bg-primary text-primary-foreground rounded-xl flex items-center justify-center shrink-0 disabled:opacity-30 hover:bg-primary/90 transition-colors"
                     >
                         <Send className="w-4 h-4" />
                     </button>
                 </div>
             </form>
 
-            {/* Memory Viewer Modal */}
-            {showMemory && (
-                <div role="dialog" aria-modal="true" className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
-                    <div aria-label="Patientenakte" className="bg-background w-full max-w-md rounded-t-2xl p-4 max-h-[80vh] flex flex-col animate-in slide-in-from-bottom duration-200">
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                                <BookOpen className="w-4 h-4 text-primary" />
-                                <h3 className="text-sm font-bold">Patientenakte</h3>
-                            </div>
-                            <button onClick={() => setShowMemory(false)} className="p-1">
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-                        <textarea
-                            value={memoryText}
-                            onChange={(e) => setMemoryText(e.target.value)}
-                            className="flex-1 min-h-[200px] text-xs font-mono bg-muted rounded-xl p-3 outline-none resize-none"
-                        />
-                        <div className="flex gap-2 mt-3">
-                            <button
-                                onClick={saveMemory}
-                                className="flex-1 px-3 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-colors"
-                            >
-                                Speichern
-                            </button>
-                            <button
-                                onClick={() => setShowMemory(false)}
-                                className="px-3 py-2 bg-muted text-muted-foreground rounded-full text-sm font-medium"
-                            >
-                                Abbrechen
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Memory Viewer Sheet */}
+            <Sheet open={showMemory} onOpenChange={setShowMemory}>
+                <SheetContent side="bottom" className="max-h-[80vh] rounded-t-3xl">
+                    <SheetHeader>
+                        <SheetTitle className="flex items-center gap-2 font-serif">
+                            <BookOpen className="w-4 h-4 text-primary" />
+                            Patientenakte
+                        </SheetTitle>
+                    </SheetHeader>
+                    <textarea
+                        value={memoryText}
+                        onChange={(e) => setMemoryText(e.target.value)}
+                        className="flex-1 min-h-[200px] w-full text-xs font-mono bg-muted rounded-xl p-3 outline-none resize-none mt-4"
+                    />
+                    <SheetFooter className="mt-4 flex gap-2">
+                        <Button
+                            onClick={saveMemory}
+                            className="flex-1 bg-gradient-to-r from-primary to-coral text-white rounded-xl"
+                        >
+                            Speichern
+                        </Button>
+                        <Button variant="outline" onClick={() => setShowMemory(false)} className="rounded-xl">
+                            Abbrechen
+                        </Button>
+                    </SheetFooter>
+                </SheetContent>
+            </Sheet>
         </div>
     );
 }

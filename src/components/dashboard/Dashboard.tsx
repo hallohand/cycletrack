@@ -1,15 +1,21 @@
 'use client';
 import { useCycleData } from '@/hooks/useCycleData';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
-import { Plus, Calendar as CalendarIcon, Activity, Droplets, Thermometer, ChevronRight, AlertCircle, CheckCircle2, Leaf, Siren } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
-import { Progress } from "@/components/ui/progress"
+import { useEffect, useState, useMemo } from 'react';
+import { Droplets, Thermometer, Activity, CheckCircle2, Leaf, Siren, AlertCircle, Calendar, TrendingUp, Heart } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { AiSummaryCard } from '@/components/dashboard/AiSummaryCard';
+import { CycleRing, Blob } from '@/components/ui/blob';
+import { DashboardSkeleton } from '@/components/ui/skeleton';
+import { EntryDrawer } from '@/components/entry/EntryDrawer';
+
+const StatCard = ({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) => (
+    <div className="flex-shrink-0 w-32 bg-card rounded-2xl p-3 shadow-soft border border-border/50 transition-transform active:scale-[0.97]">
+        <Icon className="w-4 h-4 text-primary mb-2" />
+        <div className="text-base font-bold text-foreground font-sans">{value}</div>
+        <div className="text-[11px] text-muted-foreground">{label}</div>
+    </div>
+);
 
 export default function Dashboard() {
     const { data, isLoaded, engine } = useCycleData();
@@ -19,7 +25,7 @@ export default function Dashboard() {
         setToday(new Date());
     }, []);
 
-    if (!isLoaded || !today || !engine) return <div className="p-8 text-center text-muted-foreground animate-pulse">Lade CycleTrack Engine...</div>;
+    if (!isLoaded || !today || !engine) return <DashboardSkeleton />;
 
     const current = engine.currentCycle;
     const prediction = engine.predictions.today;
@@ -28,7 +34,6 @@ export default function Dashboard() {
     // Helpers
     let nextPeriodStr = engine.predictions.futureCycles[0]?.cycleStart;
     if (!nextPeriodStr && current.state === 'OVU_CONFIRMED' && current.ovulationConfirmedDate) {
-        // Fallback if prediction array empty but confirmed
         const d = new Date(current.ovulationConfirmedDate);
         d.setDate(d.getDate() + stats.medianLutealLength);
         nextPeriodStr = d.toISOString().split('T')[0];
@@ -36,24 +41,20 @@ export default function Dashboard() {
 
     const daysToPeriod = nextPeriodStr ? Math.ceil((new Date(nextPeriodStr).getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : '?';
 
-    // Status Logic Mapping
-    let status = { title: 'Lutealphase', subtitle: 'Nach Eisprung', color: 'bg-[var(--phase-luteal-light)]', text: 'text-[var(--phase-luteal)]', icon: Activity };
+    // Phase style mapping
+    type PhaseStyle = { title: string; bg: string; text: string; icon: LucideIcon };
 
-    if (current.state === 'MENSTRUATION') {
-        status = { title: 'Periode', subtitle: `Zyklustag ${current.day}`, color: 'bg-primary/10', text: 'text-primary', icon: Droplets };
-    } else if (current.state === 'PRE_FERTILE') {
-        status = { title: 'Follikelphase', subtitle: `Zyklustag ${current.day}`, color: 'bg-accent', text: 'text-accent-foreground', icon: Leaf };
-    } else if (current.state === 'FERTILE_MID') {
-        status = { title: 'Fruchtbar', subtitle: 'Beginn', color: 'bg-[var(--phase-fertile-light)]', text: 'text-[var(--phase-fertile)]', icon: Thermometer };
-    } else if (current.state === 'PEAK_LH') {
-        status = { title: 'Maximale Fruchtbarkeit', subtitle: 'Eisprung steht bevor', color: 'bg-[var(--phase-ovulation-light)]', text: 'text-[var(--phase-ovulation)]', icon: Siren };
-    } else if (current.state === 'POST_OVU_PENDING') {
-        status = { title: 'Eisprung möglich', subtitle: 'Warte auf Temp-Anstieg', color: 'bg-[var(--phase-ovulation-light)]', text: 'text-[var(--phase-ovulation)]', icon: Activity };
-    } else if (current.state === 'OVU_CONFIRMED') {
-        status = { title: 'Lutealphase', subtitle: 'Eisprung bestätigt', color: 'bg-[var(--phase-luteal-light)]', text: 'text-[var(--phase-luteal)]', icon: CheckCircle2 };
-    } else if (current.state === 'ANOVULATORY_SUSPECTED') {
-        status = { title: 'Unklar', subtitle: 'Kein eindeutiger Temp-Anstieg', color: 'bg-muted', text: 'text-muted-foreground', icon: AlertCircle };
-    }
+    const phaseStyles: Record<string, PhaseStyle> = {
+        'MENSTRUATION': { title: 'Periode', bg: 'bg-primary/10', text: 'text-primary', icon: Droplets },
+        'PRE_FERTILE': { title: 'Follikelphase', bg: 'bg-accent', text: 'text-accent-foreground', icon: Leaf },
+        'FERTILE_MID': { title: 'Fruchtbar', bg: 'bg-[var(--phase-fertile-light)]', text: 'text-[var(--phase-fertile)]', icon: Thermometer },
+        'PEAK_LH': { title: 'Hochfruchtbar', bg: 'bg-[var(--phase-ovulation-light)]', text: 'text-[var(--phase-ovulation)]', icon: Siren },
+        'POST_OVU_PENDING': { title: 'Eisprung möglich', bg: 'bg-[var(--phase-ovulation-light)]', text: 'text-[var(--phase-ovulation)]', icon: Activity },
+        'OVU_CONFIRMED': { title: 'Lutealphase', bg: 'bg-[var(--phase-luteal-light)]', text: 'text-[var(--phase-luteal)]', icon: CheckCircle2 },
+        'ANOVULATORY_SUSPECTED': { title: 'Unklar', bg: 'bg-muted', text: 'text-muted-foreground', icon: AlertCircle },
+    };
+
+    const phaseStyle = phaseStyles[current.state] || { title: 'Lutealphase', bg: 'bg-[var(--phase-luteal-light)]', text: 'text-[var(--phase-luteal)]', icon: Activity };
 
     // Suggestion Text
     let suggestion = "";
@@ -66,84 +67,75 @@ export default function Dashboard() {
         suggestion = "Fruchtbare Tage. Beobachte deinen Zervixschleim.";
     }
 
+    // Animation
     const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     const container = {
         hidden: { opacity: 0 },
-        show: { opacity: 1, transition: { staggerChildren: prefersReducedMotion ? 0 : 0.05 } }
+        show: { opacity: 1, transition: { staggerChildren: prefersReducedMotion ? 0 : 0.08 } }
     };
-    const item = prefersReducedMotion ? { hidden: {}, show: {} } : {
-        hidden: { opacity: 0, y: 10 },
-        show: { opacity: 1, y: 0 }
-    };
+    const item = prefersReducedMotion
+        ? { hidden: { opacity: 1 }, show: { opacity: 1 } }
+        : { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 25 } } };
 
     return (
-        <motion.div variants={container} initial="hidden" animate="show" className="grid grid-cols-2 gap-3 pb-24">
+        <motion.div
+            variants={container}
+            initial="hidden"
+            animate="show"
+            className="flex flex-col items-center gap-5 pb-28 px-4 pt-2 overflow-hidden"
+        >
+            {/* Blob decorations + CycleRing */}
+            <motion.div variants={item} className="relative flex items-center justify-center" style={{ minHeight: 220 }}>
+                <Blob variant="hero" className="w-72 h-72 -top-10 -left-16 z-0" color="var(--phase-period)" />
+                <Blob variant="accent" className="w-56 h-56 -top-4 -right-12 z-0" color="var(--phase-luteal)" />
+                <div className="relative z-10">
+                    <CycleRing
+                        day={current.day}
+                        totalDays={stats.medianCycleLength || 28}
+                        phase={current.state}
+                        size={192}
+                    />
+                </div>
+            </motion.div>
+
+            {/* Status Pill */}
+            <motion.div variants={item}>
+                <div className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full shadow-soft ${phaseStyle.bg}`}>
+                    <phaseStyle.icon className={`w-4 h-4 ${phaseStyle.text}`} />
+                    <span className={`text-sm font-semibold ${phaseStyle.text}`}>{phaseStyle.title} · Tag {current.day}</span>
+                </div>
+            </motion.div>
 
             {/* AI Summary Card */}
-            <motion.div variants={item} className="col-span-2">
+            <motion.div variants={item} className="w-full">
                 <AiSummaryCard />
             </motion.div>
-            {/* 1. Main Status Card */}
-            <motion.div variants={item} className="col-span-1 row-span-1">
-                <Card className={`h-full border-none shadow-sm transition-transform active:scale-[0.98] ${status.color}`}>
-                    <CardHeader className="p-4 pb-2">
-                        <CardDescription className={status.text}>{status.title}</CardDescription>
-                        <CardTitle className={`text-xl font-bold font-serif ${status.text} leading-tight`}>{status.subtitle}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                        <status.icon className={`h-8 w-8 ${status.text} opacity-80`} />
-                    </CardContent>
-                </Card>
+
+            {/* Quick Stats Row */}
+            <motion.div variants={item} className="w-full">
+                <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4">
+                    <StatCard icon={Calendar} label="Nächste Periode" value={`${daysToPeriod} Tage`} />
+                    <StatCard icon={TrendingUp} label="Zykluslänge" value={`Ø ${Math.round(stats.medianCycleLength)} Tage`} />
+                    <StatCard icon={Activity} label="Lutealphase" value={`${Math.round(stats.medianLutealLength)} Tage`} />
+                </div>
             </motion.div>
 
-            {/* 2. Quick Action / Prediction */}
-            <motion.div variants={item} className="col-span-1 row-span-1">
-                <Card className="h-full shadow-sm border p-4 flex flex-col justify-between transition-transform active:scale-[0.98]">
-                    <div className="text-xs text-muted-foreground uppercase">Nächste Periode</div>
-                    <div className="text-2xl font-bold text-primary">
-                        {daysToPeriod} <span className="text-sm font-normal text-muted-foreground">Tage</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                        {nextPeriodStr ? new Date(nextPeriodStr).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' }) : '-'}
-                        {engine.predictions.futureCycles[0] && (
-                            <span className="block text-[10px] text-muted-foreground mt-1 opacity-70">
-                                ± {Math.round(stats.stdDevCycleLength)} Tage (Unsicherheit)
-                            </span>
-                        )}
-                    </div>
-                </Card>
+            {/* CTA Button */}
+            <motion.div variants={item} className="w-full">
+                <EntryDrawer>
+                    <button className="w-full py-4 bg-gradient-to-r from-primary to-coral text-white font-semibold rounded-2xl shadow-soft-lg active:scale-[0.98] transition-transform text-base">
+                        Wie geht es dir heute?
+                    </button>
+                </EntryDrawer>
             </motion.div>
 
-            {/* 3. Suggestion / Warning Box */}
+            {/* Suggestion text */}
             {suggestion && (
-                <motion.div variants={item} className="col-span-2">
-                    <div className={`p-3 rounded-xl border flex items-start gap-3 ${current.state === 'OVU_CONFIRMED' ? 'bg-[var(--phase-luteal-light)] border-[var(--phase-luteal)]/30 text-[var(--phase-luteal)]' : 'bg-[var(--phase-fertile-light)] border-[var(--phase-fertile)]/30 text-[var(--phase-fertile)]'}`}>
-                        {current.state === 'OVU_CONFIRMED' ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <AlertCircle className="w-5 h-5 shrink-0" />}
-                        <span className="text-sm font-medium">{suggestion}</span>
-                    </div>
+                <motion.div variants={item}>
+                    <p className="text-sm text-muted-foreground text-center px-4">{suggestion}</p>
                 </motion.div>
             )}
-
-            {/* 4. Cycle Progress & Stats */}
-            <motion.div variants={item} className="col-span-2">
-                <Card className="shadow-sm border-none bg-card">
-                    <CardHeader className="p-4 pb-2">
-                        <CardTitle className="text-base font-serif flex justify-between">
-                            <span>Zyklus-Statistik</span>
-                            <span className="text-muted-foreground font-normal">Tag {current.day}</span>
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-2 space-y-3">
-                        <Progress value={Math.min(((current.day) / (stats.medianCycleLength || 28)) * 100, 100)} className="h-2" />
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                            <span>Ø {Math.round(stats.medianCycleLength)} Tage</span>
-                            <span>Luteal: {Math.round(stats.medianLutealLength)} Tage</span>
-                        </div>
-                    </CardContent>
-                </Card>
-            </motion.div>
-
         </motion.div>
     );
 }

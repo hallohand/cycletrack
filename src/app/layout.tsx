@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import AppLayout from '@/components/layout/Layout';
+import { ThemeProvider } from 'next-themes';
 
 export const metadata: Metadata = {
   title: 'CycleTrack',
@@ -43,7 +44,7 @@ export default function RootLayout({
   return (
     <html lang="de" className="h-[100dvh]">
       <head>
-        <meta name="theme-color" content="#FBF8F6" />
+        <meta name="theme-color" content="#FFF8F9" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <meta
@@ -63,15 +64,17 @@ export default function RootLayout({
         />
       </head>
       <body className={"h-full overflow-y-auto overscroll-none touch-pan-x touch-pan-y"}>
-        <ErrorBoundary>
-          <CycleProvider>
-            <AppLock>
-              <AppLayout>{children}</AppLayout>
-            </AppLock>
-            <Toaster position="top-center" />
-            <UpdateNotification />
-          </CycleProvider>
-        </ErrorBoundary>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <ErrorBoundary>
+            <CycleProvider>
+              <AppLock>
+                <AppLayout>{children}</AppLayout>
+              </AppLock>
+              <Toaster position="top-center" />
+              <UpdateNotification />
+            </CycleProvider>
+          </ErrorBoundary>
+        </ThemeProvider>
       </body>
     </html>
   );

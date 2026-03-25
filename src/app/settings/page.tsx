@@ -10,7 +10,8 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { parseFemometerCSV } from '@/lib/importer';
 import { APP_VERSION, BUILD_DATE } from '@/lib/version';
-import { Trash2, RotateCcw, Cloud, Download, Upload, Shield, Sparkles } from 'lucide-react';
+import { Trash2, RotateCcw, Cloud, Download, Upload, Shield, Sparkles, Sun, Moon, Monitor } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import {
     getGistConfig, setGistConfig, clearGistConfig,
     syncToGist, restoreFromGist,
@@ -30,7 +31,9 @@ import {
 
 export default function SettingsPage() {
     const { data, updateSettings, importData, setAllEntries, clearAllData } = useCycleData();
+    const { theme, setTheme } = useTheme();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [mounted, setMounted] = useState(false);
     const [gistToken, setGistToken] = useState('');
     const [isSyncing, setIsSyncing] = useState(false);
     const [isRestoring, setIsRestoring] = useState(false);
@@ -49,6 +52,8 @@ export default function SettingsPage() {
     // AI Assistant State
     const [aiApiKey, setAiApiKey] = useState('');
     const [hasAiKey, setHasAiKey] = useState(false);
+
+    useEffect(() => setMounted(true), []);
 
     useEffect(() => {
         const config = getGistConfig();
@@ -223,8 +228,43 @@ export default function SettingsPage() {
         <div className="space-y-6 pb-24 px-4 pt-6">
             <h2 className="text-2xl font-bold tracking-tight font-serif">Einstellungen</h2>
 
+            {/* Appearance */}
+            <Card className="border-none shadow-soft bg-card rounded-3xl">
+                <CardHeader>
+                    <CardTitle className="font-serif flex items-center gap-2">
+                        <Sun className="w-5 h-5" />
+                        Darstellung
+                    </CardTitle>
+                    <CardDescription>Wähle das Erscheinungsbild der App.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {mounted && (
+                        <div className="flex gap-2">
+                            {[
+                                { value: 'light', label: 'Hell', icon: Sun },
+                                { value: 'dark', label: 'Dunkel', icon: Moon },
+                                { value: 'system', label: 'System', icon: Monitor },
+                            ].map(opt => (
+                                <button
+                                    key={opt.value}
+                                    onClick={() => setTheme(opt.value)}
+                                    className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all active:scale-[0.97] ${
+                                        theme === opt.value
+                                            ? 'border-primary bg-secondary'
+                                            : 'border-border/50 bg-card hover:bg-muted/50'
+                                    }`}
+                                >
+                                    <opt.icon className={`w-5 h-5 ${theme === opt.value ? 'text-primary' : 'text-muted-foreground'}`} />
+                                    <span className={`text-xs font-medium ${theme === opt.value ? 'text-primary' : 'text-muted-foreground'}`}>{opt.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
             {/* Cycle Settings */}
-            <Card className="border-none shadow-sm bg-card">
+            <Card className="border-none shadow-soft bg-card rounded-3xl">
                 <CardHeader>
                     <CardTitle className="font-serif">Zyklus-Einstellungen</CardTitle>
                     <CardDescription>Passe die App an deinen Körper an.</CardDescription>
@@ -252,7 +292,7 @@ export default function SettingsPage() {
             </Card>
 
             {/* Security Settings */}
-            <Card className="border-none shadow-sm bg-card">
+            <Card className="border-none shadow-soft bg-card rounded-3xl">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 font-serif">
                         <Shield className="w-5 h-5" />
@@ -278,7 +318,7 @@ export default function SettingsPage() {
             </Card>
 
             {/* AI Assistant */}
-            <Card className="border-none shadow-sm bg-card">
+            <Card className="border-none shadow-soft bg-card rounded-3xl">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 font-serif">
                         <Sparkles className="w-5 h-5" />
@@ -335,7 +375,7 @@ export default function SettingsPage() {
             </Card>
 
             {/* Data Management */}
-            <Card className="border-none shadow-sm bg-card">
+            <Card className="border-none shadow-soft bg-card rounded-3xl">
                 <CardHeader>
                     <CardTitle className="font-serif">Datenverwaltung</CardTitle>
                     <CardDescription>Sicherung und Import.</CardDescription>
@@ -449,7 +489,7 @@ export default function SettingsPage() {
             </Card>
 
             {/* Cloud Backup */}
-            <Card className="border-none shadow-sm bg-card">
+            <Card className="border-none shadow-soft bg-card rounded-3xl">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 font-serif">
                         <Cloud className="w-5 h-5" />
@@ -494,7 +534,7 @@ export default function SettingsPage() {
             </Card>
 
             {/* App Info */}
-            <Card className="border-none shadow-sm bg-muted/30">
+            <Card className="border-none shadow-soft bg-muted/30 rounded-3xl">
                 <CardHeader className="pb-2">
                     <CardTitle className="text-base font-serif">App Info & Updates</CardTitle>
                 </CardHeader>

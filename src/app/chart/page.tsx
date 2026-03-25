@@ -1,6 +1,8 @@
 'use client';
 import { useCycleData } from '@/hooks/useCycleData';
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, ReferenceLine } from 'recharts';
+import { ResponsiveContainer, LineChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, ReferenceLine } from 'recharts';
+import { ChartSkeleton } from '@/components/ui/skeleton';
+import { Blob } from '@/components/ui/blob';
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { ThermometerSun } from 'lucide-react';
 
@@ -150,14 +152,17 @@ export default function ChartPage() {
 
     const chartWidth = Math.max(windowWidth, chartData.length * 40);
 
-    if (!isLoaded) return <div className="p-8 text-center text-muted-foreground animate-pulse">Laden...</div>;
+    if (!isLoaded) return <ChartSkeleton />;
 
     if (chartData.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center h-[calc(100vh-200px)] px-6 text-center">
-                <ThermometerSun className="w-12 h-12 text-muted-foreground/40 mb-4" />
-                <h3 className="text-lg font-serif font-semibold mb-2">Noch keine Temperaturdaten</h3>
-                <p className="text-sm text-muted-foreground max-w-xs">Trage deine Basaltemperatur ein, um die Temperaturkurve zu sehen.</p>
+            <div className="flex flex-col items-center justify-center h-[calc(100vh-200px)] px-6 text-center relative overflow-hidden">
+                <Blob variant="corner" className="w-64 h-64 -top-20 -right-20" />
+                <div className="w-20 h-20 bg-secondary rounded-full flex items-center justify-center mb-4 relative z-10">
+                    <ThermometerSun className="w-10 h-10 text-primary" />
+                </div>
+                <h3 className="text-xl font-serif font-semibold mb-2 relative z-10">Noch keine Temperaturdaten</h3>
+                <p className="text-sm text-muted-foreground max-w-xs relative z-10">Trage deine Basaltemperatur ein, um die Temperaturkurve zu sehen.</p>
             </div>
         );
     }
@@ -165,8 +170,8 @@ export default function ChartPage() {
     return (
         <div className="flex flex-col h-[calc(100vh-160px)] px-2">
             {/* Title */}
-            <div className="pb-1 pt-1">
-                <h2 className="text-lg font-serif font-semibold">Temperaturkurve</h2>
+            <div className="pb-2 pt-1">
+                <h2 className="text-xl font-serif font-bold">Temperaturkurve</h2>
                 <p className="text-xs text-muted-foreground">Historie & Phasenverlauf</p>
             </div>
 
@@ -188,6 +193,10 @@ export default function ChartPage() {
                                     <linearGradient id="purpleGradient" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="0%" stopColor="var(--phase-luteal-light)" stopOpacity={0.2} />
                                         <stop offset="100%" stopColor="var(--phase-luteal-light)" stopOpacity={0} />
+                                    </linearGradient>
+                                    <linearGradient id="tempGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.2} />
+                                        <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
 
@@ -220,7 +229,7 @@ export default function ChartPage() {
                                 />
 
                                 <Tooltip
-                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 8px 32px rgba(232, 102, 139, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04)' }}
                                     labelStyle={{ color: 'var(--muted-foreground)' }}
                                     labelFormatter={(value) => chartData[value]?.displayDate}
                                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -281,6 +290,14 @@ export default function ChartPage() {
                                         }}
                                     />
                                 )}
+
+                                <Area
+                                    type="monotone"
+                                    dataKey="temp"
+                                    fill="url(#tempGradient)"
+                                    stroke="none"
+                                    connectNulls
+                                />
 
                                 <Line
                                     type="monotone"
@@ -361,7 +378,7 @@ export default function ChartPage() {
                 return (
                     <div className="px-2 pb-1 shrink-0">
                         {/* Phase Bar */}
-                        <div className="relative h-12 rounded-xl overflow-hidden bg-[var(--phase-luteal-light)]/30 border border-border/40">
+                        <div className="relative h-12 rounded-2xl shadow-soft overflow-hidden bg-[var(--phase-luteal-light)]/30 border border-border/40">
                             {/* Period */}
                             <div
                                 className="absolute top-0 bottom-0 rounded-l-xl bg-[var(--phase-period-light)]"
@@ -412,16 +429,16 @@ export default function ChartPage() {
 
                         {/* Info Pills */}
                         <div className="flex flex-wrap gap-1.5 mt-1">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl bg-muted text-[10px] font-medium text-muted-foreground">
                                 Zyklustag {today}/{estLen}
                             </span>
                             {cc.nextPeriodPred && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--phase-period-light)] text-[10px] font-medium text-[var(--phase-period)] border border-[var(--phase-period)]/20">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl bg-[var(--phase-period-light)] text-[10px] font-medium text-[var(--phase-period)] border border-[var(--phase-period)]/20">
                                     ~{formatDate(cc.nextPeriodPred.mid)}
                                 </span>
                             )}
                             {cc.ovulationPred && (
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${cc.ovulationConfirmedDate
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-xl text-[10px] font-medium border ${cc.ovulationConfirmedDate
                                     ? 'bg-[var(--phase-ovulation-light)] text-[var(--phase-ovulation)] border-[var(--phase-ovulation)]/30'
                                     : 'bg-[var(--phase-ovulation-light)]/50 text-[var(--phase-ovulation)] border-[var(--phase-ovulation)]/20'
                                     }`}>
@@ -429,7 +446,7 @@ export default function ChartPage() {
                                 </span>
                             )}
                             {cc.coverline && (
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${cc.coverlineProvisional
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-xl text-[10px] font-medium border ${cc.coverlineProvisional
                                     ? 'bg-muted text-muted-foreground border-border border-dashed'
                                     : 'bg-[var(--phase-period-light)] text-[var(--phase-period)] border-[var(--phase-period)]/20'
                                     }`}>

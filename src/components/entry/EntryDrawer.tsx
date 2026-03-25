@@ -19,7 +19,47 @@ import { useCycleData } from "@/hooks/useCycleData"
 import { toast } from "sonner"
 import { CycleEntry, MoodType } from "@/lib/types"
 import { toLocalISO } from "@/lib/utils"
-import { Trash2, Flame, Zap, Heart, ShieldCheck, Droplets } from "lucide-react"
+import { Trash2, Flame, Zap, Heart, ShieldCheck, Droplets, ChevronDown, Minus, Plus } from "lucide-react"
+import { motion } from "framer-motion"
+
+// --- Maps for summaries ---
+const periodMap: Record<string, string> = { light: 'Leicht', medium: 'Mittel', heavy: 'Stark', spotting: 'Schmier' };
+const painMap: Record<string, string> = { light: 'Leicht', medium: 'Mittel', strong: 'Stark', extreme: 'Extrem' };
+const lhMap: Record<string, string> = { peak: 'Peak', positive: 'Positiv', negative: 'Negativ' };
+const cervixMap: Record<string, string> = { dry: 'Trocken', sticky: 'Klebrig', creamy: 'Cremig', watery: 'Wässrig', eggwhite: 'Spinnbar' };
+
+// --- CollapsibleSection ---
+const CollapsibleSection = ({ title, summary, children, defaultOpen = false }: {
+    title: string; summary?: string; children: React.ReactNode; defaultOpen?: boolean;
+}) => {
+    const [isOpen, setIsOpen] = useState(defaultOpen);
+    return (
+        <div className="border border-border/50 rounded-2xl overflow-hidden bg-card">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full flex items-center justify-between px-4 py-3 active:bg-muted/50 transition-colors"
+            >
+                <span className="font-serif font-semibold text-sm">{title}</span>
+                <div className="flex items-center gap-2">
+                    {!isOpen && summary && (
+                        <span className="text-xs text-muted-foreground truncate max-w-[150px]">{summary}</span>
+                    )}
+                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                </div>
+            </button>
+            <motion.div
+                initial={false}
+                animate={{ height: isOpen ? 'auto' : 0, opacity: isOpen ? 1 : 0 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                className="overflow-hidden"
+            >
+                <div className="px-4 pb-4 pt-1 space-y-3">
+                    {children}
+                </div>
+            </motion.div>
+        </div>
+    );
+};
 
 interface EntryDrawerProps {
     children: React.ReactNode;
@@ -92,163 +132,159 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
         { key: 'moodswings', label: 'Schwankungen' },
     ];
 
+    // --- Summaries ---
+    const bleedingSummary = [
+        entry.period && periodMap[entry.period],
+        entry.pain && `Schmerz: ${painMap[entry.pain]}`,
+    ].filter(Boolean).join(' · ') || undefined;
+
+    const fertilitySummary = [
+        entry.lhTest && `LH: ${lhMap[entry.lhTest]}`,
+        entry.cervix && cervixMap[entry.cervix],
+    ].filter(Boolean).join(' · ') || undefined;
+
+    const wellbeingSummary = [
+        (entry.mood?.length || 0) > 0 && `${entry.mood!.length} Stimmung${entry.mood!.length > 1 ? 'en' : ''}`,
+        (entry.symptoms?.length || 0) > 0 && `${entry.symptoms!.length} Symptom${entry.symptoms!.length > 1 ? 'e' : ''}`,
+    ].filter(Boolean).join(' · ') || undefined;
+
+    const otherSummary = [
+        entry.sex === 'unprotected' && 'GV (ungesch.)',
+        entry.sex === 'protected' && 'GV (gesch.)',
+        entry.notes && 'Notiz',
+    ].filter(Boolean).join(' · ') || undefined;
+
     return (
         <Drawer open={open} onOpenChange={setOpen}>
             <DrawerTrigger asChild>
                 {children}
             </DrawerTrigger>
-            <DrawerContent className="max-h-[90vh]">
+            <DrawerContent className="max-h-[85vh]">
                 <div className="mx-auto w-full max-w-sm">
-                    <DrawerHeader>
-                        <DrawerTitle>Eintrag {hasExistingEntry ? 'bearbeiten' : 'hinzufügen'}</DrawerTitle>
-                        <DrawerDescription>Logge deine Daten für {date ? new Date(date + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'long' }) : 'heute'}.</DrawerDescription>
-                    </DrawerHeader>
-
-                    <div className="p-4 space-y-5 overflow-y-auto max-h-[65vh]">
-                        {/* Date */}
-                        <div className="space-y-2">
-                            <Label>Datum</Label>
+                    <DrawerHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                            <DrawerTitle className="text-lg">{hasExistingEntry ? 'Eintrag bearbeiten' : 'Neuer Eintrag'}</DrawerTitle>
                             <Input
                                 type="date"
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
+                                className="w-auto text-xs h-8 px-2 rounded-lg"
                             />
                         </div>
+                        <DrawerDescription className="text-xs">
+                            {date ? new Date(date + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Heute'}
+                        </DrawerDescription>
+                    </DrawerHeader>
 
-                        {/* Temperature */}
-                        <div className="space-y-2">
-                            <Label className="flex justify-between">
-                                Temperatur
-                                <div className="flex items-center space-x-2">
-                                    <Switch
-                                        id="exclude-temp"
-                                        checked={entry.excludeTemp || false}
-                                        onCheckedChange={(checked) => setEntry(prev => ({ ...prev, excludeTemp: checked }))}
+                    <div className="px-4 pb-4 space-y-3 overflow-y-auto max-h-[70vh]">
+
+                        {/* Temperature — always visible */}
+                        <div className="bg-card rounded-2xl p-4 border border-border/50 space-y-3">
+                            <Label className="font-serif font-semibold text-sm">Temperatur</Label>
+                            <div className="flex items-center justify-center gap-4">
+                                <button
+                                    className="w-10 h-10 rounded-full bg-muted flex items-center justify-center active:scale-95 transition-transform"
+                                    onClick={() => {
+                                        const current = entry.temperature || 36.5;
+                                        setEntry(prev => ({ ...prev, temperature: Math.round((current - 0.05) * 100) / 100 }));
+                                    }}
+                                >
+                                    <Minus className="w-4 h-4" />
+                                </button>
+                                <div className="text-center">
+                                    <input
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={entry.temperature || ''}
+                                        onChange={(e) => setEntry(prev => ({ ...prev, temperature: e.target.value ? parseFloat(e.target.value) : null }))}
+                                        placeholder="36.50"
+                                        className={`text-3xl font-bold text-center w-28 bg-transparent outline-none font-sans tabular-nums ${entry.excludeTemp ? 'opacity-40 line-through' : ''}`}
                                     />
-                                    <Label htmlFor="exclude-temp" className="text-xs font-normal text-muted-foreground">Störfaktor?</Label>
+                                    <span className="text-xs text-muted-foreground">°C</span>
                                 </div>
-                            </Label>
-                            <div className="flex items-center gap-2">
-                                <Input
-                                    type="text"
-                                    inputMode="decimal"
-                                    value={entry.temperature || ''}
-                                    onChange={(e) => setEntry(prev => ({ ...prev, temperature: e.target.value ? parseFloat(e.target.value) : null }))}
-                                    placeholder="36.50"
-                                    className={entry.excludeTemp ? 'opacity-50' : ''}
+                                <button
+                                    className="w-10 h-10 rounded-full bg-muted flex items-center justify-center active:scale-95 transition-transform"
+                                    onClick={() => {
+                                        const current = entry.temperature || 36.5;
+                                        setEntry(prev => ({ ...prev, temperature: Math.round((current + 0.05) * 100) / 100 }));
+                                    }}
+                                >
+                                    <Plus className="w-4 h-4" />
+                                </button>
+                            </div>
+                            <div className="flex items-center justify-center gap-2">
+                                <Switch
+                                    id="exclude-temp"
+                                    checked={entry.excludeTemp || false}
+                                    onCheckedChange={(checked) => setEntry(prev => ({ ...prev, excludeTemp: checked }))}
                                 />
-                                <span className="text-sm text-muted-foreground">°C</span>
+                                <Label htmlFor="exclude-temp" className="text-xs text-muted-foreground">Störfaktor</Label>
                             </div>
                         </div>
 
-
-                        {/* Period & Pain */}
-                        <div className="space-y-4 border-b pb-4">
-                            <Label className="text-base font-semibold font-serif">Blutung & Schmerz</Label>
-
-                            {/* Period Flow */}
-                            <div className="space-y-2">
-                                <Label className="text-xs text-muted-foreground">Blutungsstärke</Label>
-                                <div className="flex flex-wrap gap-2">
-                                    {[
-                                        { val: 'light', label: 'Leicht' },
-                                        { val: 'medium', label: 'Mittel' },
-                                        { val: 'heavy', label: 'Stark' },
-                                    ].map(t => (
-                                        <Button
-                                            key={t.val}
-                                            variant={entry.period === t.val ? "default" : "outline"}
-                                            size="sm"
-                                            className={entry.period === t.val ? 'bg-primary hover:bg-primary/90 text-white' : ''}
-                                            onClick={() => handleOptionSelect('period', t.val)}
-                                        >
-                                            {t.label}
-                                        </Button>
-                                    ))}
-                                </div>
+                        {/* Bleeding & Pain */}
+                        <CollapsibleSection title="Blutung & Schmerz" summary={bleedingSummary} defaultOpen={!!(entry.period || entry.pain)}>
+                            <Label className="text-xs text-muted-foreground">Blutungsstärke</Label>
+                            <div className="flex gap-3 justify-center">
+                                {[
+                                    { val: 'light', label: 'Leicht' },
+                                    { val: 'medium', label: 'Mittel' },
+                                    { val: 'heavy', label: 'Stark' },
+                                    { val: 'spotting', label: 'Schmier' },
+                                ].map(t => (
+                                    <button key={t.val}
+                                        onClick={() => handleOptionSelect('period', t.val)}
+                                        className={`flex flex-col items-center gap-1 transition-all active:scale-95 ${entry.period === t.val ? 'scale-110' : ''}`}
+                                    >
+                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-colors ${entry.period === t.val ? 'bg-primary border-primary text-primary-foreground' : 'bg-card border-border text-muted-foreground'}`}>
+                                            <Droplets className="w-5 h-5" />
+                                        </div>
+                                        <span className="text-[10px] font-medium">{t.label}</span>
+                                    </button>
+                                ))}
                             </div>
 
-                            {/* Period Pain */}
-                            <div className="space-y-2">
-                                <Label className="text-xs text-muted-foreground">Schmerzen</Label>
-                                <div className="flex flex-wrap gap-2">
-                                    {[
-                                        { val: 'light', label: 'Leicht', icon: <Zap className="w-3.5 h-3.5" /> },
-                                        { val: 'medium', label: 'Mittel', icon: <><Zap className="w-3.5 h-3.5" /><Zap className="w-3.5 h-3.5" /></> },
-                                        { val: 'strong', label: 'Stark', icon: <Flame className="w-3.5 h-3.5" /> },
-                                        { val: 'extreme', label: 'Extrem', icon: <Flame className="w-3.5 h-3.5 text-destructive" /> },
-                                    ].map(p => (
-                                        <Button
-                                            key={p.val}
-                                            variant={entry.pain === p.val ? "default" : "outline"}
-                                            size="sm"
-                                            className={entry.pain === p.val ? 'bg-[var(--phase-ovulation)] hover:bg-[var(--phase-ovulation)]/85 text-white' : ''}
-                                            onClick={() => handleOptionSelect('pain', p.val)}
-                                        >
-                                            <span className="mr-1 inline-flex">{p.icon}</span> {p.label}
-                                        </Button>
-                                    ))}
-                                </div>
+                            <Label className="text-xs text-muted-foreground pt-2">Schmerzen</Label>
+                            <div className="flex gap-3 justify-center">
+                                {[
+                                    { val: 'light', label: 'Leicht', icon: <Zap className="w-5 h-5" /> },
+                                    { val: 'medium', label: 'Mittel', icon: <><Zap className="w-4 h-4" /><Zap className="w-4 h-4" /></> },
+                                    { val: 'strong', label: 'Stark', icon: <Flame className="w-5 h-5" /> },
+                                    { val: 'extreme', label: 'Extrem', icon: <Flame className="w-5 h-5 text-destructive" /> },
+                                ].map(p => (
+                                    <button key={p.val}
+                                        onClick={() => handleOptionSelect('pain', p.val)}
+                                        className={`flex flex-col items-center gap-1 transition-all active:scale-95 ${entry.pain === p.val ? 'scale-110' : ''}`}
+                                    >
+                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-colors ${entry.pain === p.val ? 'bg-primary border-primary text-primary-foreground' : 'bg-card border-border text-muted-foreground'}`}>
+                                            {p.icon}
+                                        </div>
+                                        <span className="text-[10px] font-medium">{p.label}</span>
+                                    </button>
+                                ))}
                             </div>
-                        </div>
+                        </CollapsibleSection>
 
-                        {/* LH Test */}
-                        <div className="space-y-2">
-                            <Label>LH-Test (Ovulationstest)</Label>
-                            <div className="flex gap-2 flex-wrap">
-                                <Button
-                                    variant={entry.lhTest === 'peak' ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => handleOptionSelect('lhTest', 'peak')}
-                                    className={entry.lhTest === 'peak' ? 'bg-[var(--phase-luteal)] hover:bg-[var(--phase-luteal)]/85 text-white' : ''}
-                                >
-                                    Peak (Max)
-                                </Button>
-                                <Button
-                                    variant={entry.lhTest === 'positive' ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => handleOptionSelect('lhTest', 'positive')}
-                                    className={entry.lhTest === 'positive' ? 'bg-[var(--phase-luteal)]/80 hover:bg-[var(--phase-luteal)]/70 text-white' : ''}
-                                >
-                                    Positiv
-                                </Button>
-                                <Button
-                                    variant={entry.lhTest === 'negative' ? "secondary" : "outline"}
-                                    size="sm"
-                                    onClick={() => handleOptionSelect('lhTest', 'negative')}
-                                >
-                                    Negativ
-                                </Button>
+                        {/* Fertility Signs */}
+                        <CollapsibleSection title="Fruchtbarkeitszeichen" summary={fertilitySummary}>
+                            <Label className="text-xs text-muted-foreground">LH-Test (Ovulationstest)</Label>
+                            <div className="flex gap-2 justify-center">
+                                {[
+                                    { val: 'peak', label: 'Peak' },
+                                    { val: 'positive', label: 'Positiv' },
+                                    { val: 'negative', label: 'Negativ' },
+                                ].map(opt => (
+                                    <button key={opt.val}
+                                        onClick={() => handleOptionSelect('lhTest', opt.val)}
+                                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 border ${entry.lhTest === opt.val ? 'bg-primary border-primary text-primary-foreground' : 'bg-card border-border text-muted-foreground'}`}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
                             </div>
-                        </div>
 
-                        {/* Sex */}
-                        <div className="space-y-2">
-                            <Label>Geschlechtsverkehr</Label>
-                            <div className="flex gap-2">
-                                <Button
-                                    variant={entry.sex === 'unprotected' ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => handleOptionSelect('sex', 'unprotected')}
-                                    className={entry.sex === 'unprotected' ? 'bg-primary hover:bg-primary/90 text-white' : ''}
-                                >
-                                    <Heart className="w-3.5 h-3.5 mr-1" /> Ungeschützt
-                                </Button>
-                                <Button
-                                    variant={entry.sex === 'protected' ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => handleOptionSelect('sex', 'protected')}
-                                    className={entry.sex === 'protected' ? 'bg-[var(--phase-fertile)] hover:bg-[var(--phase-fertile)]/85 text-white' : ''}
-                                >
-                                    <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Geschützt
-                                </Button>
-                            </div>
-                        </div>
-
-                        {/* Cervix */}
-                        <div className="space-y-2">
-                            <Label>Zervixschleim</Label>
-                            <div className="flex flex-wrap gap-2">
+                            <Label className="text-xs text-muted-foreground pt-2">Zervixschleim</Label>
+                            <div className="flex flex-wrap gap-2 justify-center">
                                 {[
                                     { val: 'dry', label: 'Trocken' },
                                     { val: 'sticky', label: 'Klebrig' },
@@ -256,83 +292,89 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                                     { val: 'watery', label: 'Wässrig' },
                                     { val: 'eggwhite', label: 'Spinnbar' },
                                 ].map(opt => (
-                                    <Button
-                                        key={opt.val}
-                                        variant={entry.cervix === opt.val ? "default" : "outline"}
-                                        size="sm"
+                                    <button key={opt.val}
                                         onClick={() => handleOptionSelect('cervix', opt.val)}
+                                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 border ${entry.cervix === opt.val ? 'bg-primary border-primary text-primary-foreground' : 'bg-card border-border text-muted-foreground'}`}
                                     >
                                         {opt.label}
-                                    </Button>
+                                    </button>
                                 ))}
                             </div>
-                        </div>
+                        </CollapsibleSection>
 
-                        {/* Symptoms */}
-                        <div className="space-y-2">
-                            <Label>Symptome</Label>
+                        {/* Wellbeing */}
+                        <CollapsibleSection title="Wohlbefinden" summary={wellbeingSummary}>
+                            <Label className="text-xs text-muted-foreground">Stimmung</Label>
+                            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+                                {moods.map(m => (
+                                    <button key={m.key}
+                                        onClick={() => toggleMood(m.key as MoodType)}
+                                        className={`flex-shrink-0 flex flex-col items-center gap-1 transition-all active:scale-95 ${(entry.mood || []).includes(m.key as MoodType) ? 'scale-110' : ''}`}
+                                    >
+                                        <div className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-colors text-xs font-bold ${(entry.mood || []).includes(m.key as MoodType) ? 'bg-primary border-primary text-primary-foreground' : 'bg-card border-border text-muted-foreground'}`}>
+                                            {m.label.charAt(0)}
+                                        </div>
+                                        <span className="text-[10px] font-medium whitespace-nowrap">{m.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+
+                            <Label className="text-xs text-muted-foreground pt-2">Symptome</Label>
                             <div className="flex flex-wrap gap-1.5">
-                                <Button
-                                    variant={entry.period === 'spotting' ? "default" : "outline"}
-                                    size="sm"
-                                    className={entry.period === 'spotting' ? 'bg-[var(--phase-ovulation)] hover:bg-[var(--phase-ovulation)]/85 text-white text-xs' : 'text-xs'}
-                                    onClick={() => handleOptionSelect('period', 'spotting')}
-                                >
-                                    <Droplets className="w-3.5 h-3.5 mr-1" /> Schmierblutung
-                                </Button>
                                 {symptoms.map(s => (
-                                    <Button
-                                        key={s}
-                                        variant={(entry.symptoms || []).includes(s) ? "default" : "outline"}
-                                        size="sm"
-                                        className="text-xs"
+                                    <button key={s}
                                         onClick={() => toggleSymptom(s)}
+                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95 border ${(entry.symptoms || []).includes(s) ? 'bg-primary border-primary text-primary-foreground' : 'bg-card border-border text-muted-foreground'}`}
                                     >
                                         {s}
-                                    </Button>
+                                    </button>
                                 ))}
                             </div>
-                        </div>
+                        </CollapsibleSection>
 
-                        {/* Mood */}
-                        <div className="space-y-2">
-                            <Label>Stimmung</Label>
-                            <div className="flex flex-wrap gap-1.5">
-                                {moods.map(m => (
-                                    <Button
-                                        key={m.key}
-                                        variant={(entry.mood || []).includes(m.key as MoodType) ? "default" : "outline"}
-                                        size="sm"
-                                        className="text-xs"
-                                        onClick={() => toggleMood(m.key as MoodType)}
-                                    >
-                                        {m.label}
-                                    </Button>
-                                ))}
+                        {/* GV + Notes */}
+                        <CollapsibleSection title="GV & Notizen" summary={otherSummary}>
+                            <Label className="text-xs text-muted-foreground">Geschlechtsverkehr</Label>
+                            <div className="flex gap-2 justify-center">
+                                <button
+                                    onClick={() => handleOptionSelect('sex', 'unprotected')}
+                                    className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 border ${entry.sex === 'unprotected' ? 'bg-primary border-primary text-primary-foreground' : 'bg-card border-border text-muted-foreground'}`}
+                                >
+                                    <Heart className="w-4 h-4" /> Ungeschützt
+                                </button>
+                                <button
+                                    onClick={() => handleOptionSelect('sex', 'protected')}
+                                    className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 border ${entry.sex === 'protected' ? 'bg-primary border-primary text-primary-foreground' : 'bg-card border-border text-muted-foreground'}`}
+                                >
+                                    <ShieldCheck className="w-4 h-4" /> Geschützt
+                                </button>
                             </div>
-                        </div>
 
-                        {/* Notes */}
-                        <div className="space-y-2">
-                            <Label>Notizen</Label>
+                            <Label className="text-xs text-muted-foreground pt-2">Notizen</Label>
                             <textarea
                                 value={entry.notes || ''}
                                 onChange={(e) => setEntry(prev => ({ ...prev, notes: e.target.value }))}
-                                className="w-full p-2 text-sm border rounded-lg resize-none focus:ring-2 focus:ring-primary/20 outline-none"
-                                rows={2}
+                                className="w-full p-3 text-sm border border-border/50 rounded-xl resize-none focus:ring-2 focus:ring-primary/20 outline-none bg-transparent"
+                                rows={3}
                                 placeholder="Optionale Notizen..."
                             />
-                        </div>
+                        </CollapsibleSection>
+
                     </div>
 
-                    <DrawerFooter>
-                        <Button onClick={handleSave}>Speichern</Button>
+                    <DrawerFooter className="pt-2">
+                        <Button
+                            onClick={handleSave}
+                            className="w-full bg-gradient-to-r from-primary to-coral text-white rounded-xl h-12 text-base font-semibold shadow-soft active:scale-[0.98] transition-transform"
+                        >
+                            Speichern
+                        </Button>
                         <div className="flex gap-2">
                             <DrawerClose asChild>
-                                <Button variant="outline" className="flex-1">Abbrechen</Button>
+                                <Button variant="outline" className="flex-1 rounded-xl">Abbrechen</Button>
                             </DrawerClose>
                             {hasExistingEntry && (
-                                <Button variant="destructive" size="icon" onClick={handleDelete}>
+                                <Button variant="destructive" size="icon" className="rounded-xl" onClick={handleDelete}>
                                     <Trash2 className="w-4 h-4" />
                                 </Button>
                             )}

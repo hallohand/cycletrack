@@ -23,6 +23,7 @@
   --color-phase-ovulation-light: var(--phase-ovulation-light);
   --color-phase-luteal: var(--phase-luteal);
   --color-phase-luteal-light: var(--phase-luteal-light);
+  --color-coral: var(--coral);
 
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -63,10 +64,10 @@
 }
 
 :root {
-  --radius: 0.875rem;
+  --radius: 1.25rem;
 
-  /* Warm off-white background */
-  --background: #FBF8F6;
+  /* Warm rosé background with subtle gradient feel */
+  --background: #FFF8F9;
   --foreground: #2D2438;
 
   --card: #FFFFFF;
@@ -75,14 +76,14 @@
   --popover: #FFFFFF;
   --popover-foreground: #2D2438;
 
-  /* Soft Rose — warm, approachable */
-  --primary: #D4628E;
+  /* Warm pink — feminine, inviting */
+  --primary: #E8668B;
   --primary-foreground: #FFFFFF;
 
-  --secondary: #F2E8ED;
-  --secondary-foreground: #8B3A5E;
+  --secondary: #FDE8EF;
+  --secondary-foreground: #9B3A62;
 
-  --muted: #F5F1EF;
+  --muted: #F5F0EE;
   --muted-foreground: #7B7388;
 
   --accent: #E8E4F3;
@@ -91,35 +92,38 @@
   --destructive: #D94F4F;
   --destructive-foreground: #FFFFFF;
 
-  --border: #EDE8E4;
-  --input: #EDE8E4;
-  --ring: #D4628E;
+  --border: #F0E8E4;
+  --input: #F0E8E4;
+  --ring: #E8668B;
 
-  /* Phase colors — semantic tokens */
-  --phase-period: #D4628E;
-  --phase-period-light: #F2D1DE;
+  /* Coral accent for CTAs */
+  --coral: #F4845F;
+
+  /* Phase colors */
+  --phase-period: #E8668B;
+  --phase-period-light: #FDE8EF;
   --phase-fertile: #5BA8C8;
   --phase-fertile-light: #D6EDF7;
-  --phase-ovulation: #E8A87C;
+  --phase-ovulation: #F0A870;
   --phase-ovulation-light: #FBE8D8;
   --phase-luteal: #9B8EC4;
   --phase-luteal-light: #E8E4F3;
 
-  /* Chart colors using phase tokens */
-  --chart-1: #D4628E;
+  /* Chart */
+  --chart-1: #E8668B;
   --chart-2: #5BA8C8;
-  --chart-3: #E8A87C;
+  --chart-3: #F0A870;
   --chart-4: #9B8EC4;
   --chart-5: #7CB88A;
 
-  --sidebar: #FBF8F6;
+  --sidebar: #FFF8F9;
   --sidebar-foreground: #2D2438;
-  --sidebar-primary: #D4628E;
+  --sidebar-primary: #E8668B;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #F2E8ED;
-  --sidebar-accent-foreground: #8B3A5E;
-  --sidebar-border: #EDE8E4;
-  --sidebar-ring: #D4628E;
+  --sidebar-accent: #FDE8EF;
+  --sidebar-accent-foreground: #9B3A62;
+  --sidebar-border: #F0E8E4;
+  --sidebar-ring: #E8668B;
 }
 
 .dark {
@@ -132,11 +136,11 @@
   --popover: #231E2C;
   --popover-foreground: #F0ECF4;
 
-  --primary: #E88AAE;
+  --primary: #F08DA8;
   --primary-foreground: #1A1520;
 
-  --secondary: #2E2639;
-  --secondary-foreground: #E8B8CC;
+  --secondary: #2E2030;
+  --secondary-foreground: #F0B8CC;
 
   --muted: #2A2335;
   --muted-foreground: #9B93A8;
@@ -149,10 +153,12 @@
 
   --border: #3A3245;
   --input: #3A3245;
-  --ring: #E88AAE;
+  --ring: #F08DA8;
 
-  --phase-period: #E88AAE;
-  --phase-period-light: #3D2535;
+  --coral: #F4A080;
+
+  --phase-period: #F08DA8;
+  --phase-period-light: #3D2030;
   --phase-fertile: #6DBAD8;
   --phase-fertile-light: #1E3340;
   --phase-ovulation: #F0B88C;
@@ -160,7 +166,7 @@
   --phase-luteal: #B0A4D4;
   --phase-luteal-light: #2E2639;
 
-  --chart-1: #E88AAE;
+  --chart-1: #F08DA8;
   --chart-2: #6DBAD8;
   --chart-3: #F0B88C;
   --chart-4: #B0A4D4;
@@ -168,12 +174,12 @@
 
   --sidebar: #1A1520;
   --sidebar-foreground: #F0ECF4;
-  --sidebar-primary: #E88AAE;
+  --sidebar-primary: #F08DA8;
   --sidebar-primary-foreground: #1A1520;
-  --sidebar-accent: #2E2639;
-  --sidebar-accent-foreground: #E8B8CC;
+  --sidebar-accent: #2E2030;
+  --sidebar-accent-foreground: #F0B8CC;
   --sidebar-border: #3A3245;
-  --sidebar-ring: #E88AAE;
+  --sidebar-ring: #F08DA8;
 }
 
 @layer base {
@@ -183,10 +189,58 @@
   body {
     @apply bg-background text-foreground;
     font-family: 'Raleway', system-ui, sans-serif;
+    -webkit-tap-highlight-color: transparent;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Lora', Georgia, serif;
   }
+}
+
+/* Shimmer skeleton loading */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--muted) 25%,
+    var(--secondary) 50%,
+    var(--muted) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+  border-radius: var(--radius);
+}
+
+/* Soft glow for ovulation */
+@keyframes soft-glow {
+  0%, 100% { box-shadow: 0 0 8px 2px rgba(240, 168, 112, 0.3); }
+  50% { box-shadow: 0 0 16px 4px rgba(240, 168, 112, 0.5); }
+}
+
+.glow-ovulation {
+  animation: soft-glow 2.5s ease-in-out infinite;
+}
+
+/* Subtle pulse for predictions */
+@keyframes soft-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+.pulse-prediction {
+  animation: soft-pulse 3s ease-in-out infinite;
+}
+
+/* Pink-tinted card shadow */
+.shadow-soft {
+  box-shadow: 0 4px 20px rgba(232, 102, 139, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.shadow-soft-lg {
+  box-shadow: 0 8px 32px rgba(232, 102, 139, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
 /* Reduced motion support */
@@ -196,5 +250,9 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+  .glow-ovulation,
+  .pulse-prediction {
+    animation: none !important;
   }
 }

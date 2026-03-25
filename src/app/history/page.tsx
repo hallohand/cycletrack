@@ -1,13 +1,26 @@
 'use client';
 import { useCycleData } from '@/hooks/useCycleData';
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { PDFExportButton } from '@/components/history/PDFExportButton';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function HistoryPage() {
     const { data, isLoaded, engine, cycles } = useCycleData();
     const [tab, setTab] = useState<'history' | 'forecast'>('history');
+    const [expandedCycle, setExpandedCycle] = useState<string | null>(null);
 
-    if (!isLoaded) return <div className="p-8 text-center text-muted-foreground animate-pulse">Laden...</div>;
+    if (!isLoaded) return (
+        <div className="flex flex-col px-4 gap-4 pt-6">
+            <Skeleton className="w-48 h-7" />
+            <div className="grid grid-cols-2 gap-3">
+                <Skeleton className="h-20 rounded-2xl" />
+                <Skeleton className="h-20 rounded-2xl" />
+            </div>
+            <Skeleton className="w-32 h-5" />
+            {[1,2,3,4].map(i => <Skeleton key={i} className="w-full h-12 rounded-xl" />)}
+        </div>
+    );
 
     const stats = engine?.statistics;
     const medianLen = stats?.medianCycleLength || data.cycleLength || 28;
@@ -37,11 +50,11 @@ export default function HistoryPage() {
 
             {/* Stats Cards */}
             <div className="grid grid-cols-2 gap-3 mb-4 shrink-0">
-                <div className="bg-[var(--phase-period-light)] rounded-2xl p-4 flex flex-col items-start relative overflow-hidden">
+                <div className="bg-[var(--phase-period-light)] rounded-3xl shadow-soft p-4 flex flex-col items-start relative overflow-hidden">
                     <span className="text-2xl font-bold text-[var(--phase-period)]">{periodLen} Tage</span>
                     <span className="text-xs text-[var(--phase-period)]/70 mt-0.5">Periodenlänge</span>
                 </div>
-                <div className="bg-[var(--phase-ovulation-light)] rounded-2xl p-4 flex flex-col items-start relative overflow-hidden">
+                <div className="bg-[var(--phase-ovulation-light)] rounded-3xl shadow-soft p-4 flex flex-col items-start relative overflow-hidden">
                     <span className="text-2xl font-bold text-[var(--phase-ovulation)]">{medianLen} Tage</span>
                     <span className="text-xs text-[var(--phase-ovulation)]/70 mt-0.5">Zykluslänge</span>
                 </div>
@@ -103,53 +116,86 @@ export default function HistoryPage() {
                                 : 'Heute';
 
                             return (
-                                <div key={cycle.id} className="space-y-1 transition-transform active:scale-[0.99]">
-                                    {/* Date range + irregular badge */}
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs text-muted-foreground">
-                                            {startStr} – {endStr}
-                                        </span>
-                                        {irregular && (
-                                            <span className="text-[10px] font-medium text-[var(--phase-ovulation)] flex items-center gap-0.5">
-                                                Unregelmäßig
+                                <div key={cycle.id} className="space-y-1">
+                                    <button
+                                        onClick={() => setExpandedCycle(expandedCycle === cycle.id ? null : cycle.id)}
+                                        className="w-full text-left transition-transform active:scale-[0.99]"
+                                    >
+                                        {/* Date range + irregular badge */}
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs text-muted-foreground">
+                                                {startStr} – {endStr}
                                             </span>
-                                        )}
-                                    </div>
-
-                                    {/* Cycle Bar */}
-                                    <div className="flex items-center gap-2">
-                                        {/* Bar — width proportional to longest cycle */}
-                                        <div className="relative h-7 rounded-full overflow-hidden bg-muted" style={{ width: `${barWidthPct}%` }}>
-                                            {/* Period segment */}
-                                            <div
-                                                className="absolute top-0 bottom-0 left-0 rounded-full bg-[var(--phase-period)] flex items-center justify-center"
-                                                style={{ width: `${periodPct}%`, minWidth: '24px' }}
-                                            >
-                                                <span className="text-[10px] font-bold text-white">{pLen}</span>
-                                            </div>
-
-                                            {/* Fertile window */}
-                                            {fertStartPct >= 0 && fertWidthPct > 0 && (
-                                                <div
-                                                    className="absolute top-0 bottom-0 rounded-full bg-[var(--phase-fertile)]/40"
-                                                    style={{ left: `${fertStartPct}%`, width: `${fertWidthPct}%` }}
-                                                />
-                                            )}
-
-                                            {/* Ovulation marker — thick vertical line */}
-                                            {ovuPct >= 0 && (
-                                                <div
-                                                    className="absolute top-0.5 bottom-0.5 w-1 bg-[var(--phase-ovulation)] rounded-full z-10"
-                                                    style={{ left: `calc(${ovuPct}% - 2px)` }}
-                                                />
+                                            {irregular && (
+                                                <span className="text-[10px] font-medium text-[var(--phase-ovulation)] flex items-center gap-0.5">
+                                                    Unregelmäßig
+                                                </span>
                                             )}
                                         </div>
 
-                                        {/* Cycle length */}
-                                        <span className="text-xs font-bold text-foreground shrink-0">
-                                            {len}
-                                        </span>
-                                    </div>
+                                        {/* Cycle Bar */}
+                                        <div className="flex items-center gap-2 mt-1">
+                                            {/* Bar — width proportional to longest cycle */}
+                                            <div className="relative h-10 rounded-full overflow-hidden bg-muted" style={{ width: `${barWidthPct}%` }}>
+                                                {/* Period segment */}
+                                                <div
+                                                    className="absolute top-0 bottom-0 left-0 rounded-full bg-[var(--phase-period)] flex items-center justify-center"
+                                                    style={{ width: `${periodPct}%`, minWidth: '24px' }}
+                                                >
+                                                    <span className="text-[10px] font-bold text-white">{pLen}</span>
+                                                </div>
+
+                                                {/* Fertile window */}
+                                                {fertStartPct >= 0 && fertWidthPct > 0 && (
+                                                    <div
+                                                        className="absolute top-0 bottom-0 rounded-full bg-[var(--phase-fertile)]/40"
+                                                        style={{ left: `${fertStartPct}%`, width: `${fertWidthPct}%` }}
+                                                    />
+                                                )}
+
+                                                {/* Ovulation marker — thick vertical line */}
+                                                {ovuPct >= 0 && (
+                                                    <div
+                                                        className="absolute top-0.5 bottom-0.5 w-1 bg-[var(--phase-ovulation)] rounded-full z-10"
+                                                        style={{ left: `calc(${ovuPct}% - 2px)` }}
+                                                    />
+                                                )}
+                                            </div>
+
+                                            {/* Cycle length */}
+                                            <span className="text-xs font-bold text-foreground shrink-0">
+                                                {len}
+                                            </span>
+                                        </div>
+                                    </button>
+
+                                    {/* Expanded details */}
+                                    {expandedCycle === cycle.id && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: 'auto', opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="bg-card rounded-2xl p-4 border border-border/50 shadow-soft space-y-2 mt-2">
+                                                <div className="grid grid-cols-3 gap-3 text-center">
+                                                    <div>
+                                                        <div className="text-xs text-muted-foreground">Periodenlänge</div>
+                                                        <div className="text-base font-bold font-sans">{pLen} Tage</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-xs text-muted-foreground">Zykluslänge</div>
+                                                        <div className="text-base font-bold font-sans">{len} Tage</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-xs text-muted-foreground">Eisprung</div>
+                                                        <div className="text-base font-bold font-sans">{ovuIdx >= 0 ? `Tag ${ovuIdx + 1}` : '–'}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
                                 </div>
                             );
                         })
@@ -191,7 +237,7 @@ export default function HistoryPage() {
                                     </div>
 
                                     <div className="flex items-center gap-2">
-                                        <div className="relative h-7 rounded-full overflow-hidden bg-muted/50 border border-dashed border-border" style={{ width: `${barWidthPct}%` }}>
+                                        <div className="relative h-10 rounded-full overflow-hidden bg-muted/50 border border-dashed border-border pulse-prediction" style={{ width: `${barWidthPct}%` }}>
                                             {/* Predicted period */}
                                             <div
                                                 className="absolute top-0 bottom-0 left-0 rounded-full bg-[var(--phase-period)]/30 flex items-center justify-center"

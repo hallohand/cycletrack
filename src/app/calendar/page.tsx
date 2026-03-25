@@ -11,6 +11,7 @@ import { Info, Heart, Thermometer, Droplet, Activity, Plus, Pencil, Zap, LucideI
 import { cn, toLocalISO } from '@/lib/utils';
 import { EntryDrawer } from '@/components/entry/EntryDrawer';
 import { CycleEntry } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface DetailItemProps {
     icon: LucideIcon;
@@ -20,10 +21,10 @@ interface DetailItemProps {
 }
 
 const DetailItem = ({ icon: Icon, label, value, color }: DetailItemProps) => (
-    <div className="flex flex-col items-center bg-card p-2.5 rounded-xl border shadow-sm">
-        <Icon className={`w-5 h-5 mb-1 ${color}`} />
-        <span className="text-xs font-semibold text-center leading-tight truncate w-full">{value}</span>
-        <span className="text-[10px] text-muted-foreground">{label}</span>
+    <div className="flex flex-col items-center bg-card p-3 rounded-2xl border border-border/50 shadow-soft">
+        <Icon className={`w-5 h-5 mb-1.5 ${color}`} />
+        <span className="text-xs font-bold text-center leading-tight truncate w-full">{value}</span>
+        <span className="text-[10px] text-muted-foreground mt-0.5">{label}</span>
     </div>
 );
 
@@ -172,7 +173,12 @@ export default function CalendarPage() {
         setDate(d);
     };
 
-    if (!isLoaded) return <div className="p-8 text-center text-muted-foreground animate-pulse">Laden...</div>;
+    if (!isLoaded) return (
+        <div className="flex flex-col gap-3 px-2 pt-2">
+            <Skeleton className="w-full h-[320px] rounded-2xl" />
+            <Skeleton className="w-full h-32 rounded-2xl" />
+        </div>
+    );
 
     const getSlideClass = () => {
         if (!slideDirection) return 'translate-x-0 opacity-100';
@@ -203,16 +209,16 @@ export default function CalendarPage() {
                             onMonthChange={setMonth}
                             onSelect={handleDaySelect}
                             locale={de}
-                            className="w-full h-full [--cell-size:clamp(30px,9vw,40px)] bg-transparent border-none shadow-none"
+                            className="w-full h-full [--cell-size:clamp(30px,9vw,40px)] bg-transparent border-none shadow-none rounded-2xl"
                             modifiers={modifiers}
                             modifiersClassNames={{
-                                period: "bg-[var(--phase-period-light)] text-[var(--phase-period)] font-semibold rounded-md",
-                                predicted_period: "bg-[var(--phase-period-light)]/50 text-[var(--phase-period)]/60 rounded-md border border-dashed border-[var(--phase-period)]/30",
-                                fertile: "bg-[var(--phase-fertile-light)] text-[var(--phase-fertile)] rounded-md",
-                                predicted_fertile: "bg-[var(--phase-fertile-light)]/50 text-[var(--phase-fertile)]/60 rounded-md border border-dashed border-[var(--phase-fertile)]/30",
-                                ovulation: "ring-2 ring-[var(--phase-ovulation)] ring-offset-1 bg-[var(--phase-ovulation-light)] text-[var(--phase-ovulation)] rounded-full font-bold",
-                                predicted_ovulation: "ring-2 ring-[var(--phase-ovulation)]/50 ring-offset-1 bg-[var(--phase-ovulation-light)]/50 text-[var(--phase-ovulation)]/60 rounded-full",
-                                spotting: "bg-[var(--phase-ovulation-light)] text-[var(--phase-ovulation)] rounded-md",
+                                period: "bg-[var(--phase-period)] text-white font-semibold rounded-xl",
+                                predicted_period: "bg-[var(--phase-period-light)] text-[var(--phase-period)] rounded-xl",
+                                fertile: "bg-[var(--phase-fertile-light)] text-[var(--phase-fertile)] rounded-xl",
+                                predicted_fertile: "bg-[var(--phase-fertile-light)]/60 text-[var(--phase-fertile)]/60 rounded-xl",
+                                ovulation: "bg-[var(--phase-ovulation)] text-white rounded-full font-bold glow-ovulation",
+                                predicted_ovulation: "bg-[var(--phase-ovulation-light)] text-[var(--phase-ovulation)] rounded-full",
+                                spotting: "bg-[var(--phase-ovulation-light)] text-[var(--phase-ovulation)] rounded-xl",
                                 sex: "after:content-['♥'] after:absolute after:-top-1 after:-right-1 after:text-[8px] after:text-primary after:z-10",
                             }}
                         />
@@ -223,7 +229,7 @@ export default function CalendarPage() {
             {/* Selected Date Details (Inline) */}
             <div className="flex-1 px-4 py-4 bg-muted/30 border-t min-h-0 overflow-y-auto">
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-serif font-semibold text-lg text-primary">
+                    <h3 className="font-serif font-semibold text-xl text-foreground">
                         {date ? date.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Kein Datum gewählt'}
                     </h3>
 
@@ -307,18 +313,20 @@ export default function CalendarPage() {
                         </div>
 
                         {selectedEntry.notes && (
-                            <div className="bg-[var(--phase-ovulation-light)] p-3 rounded-xl border border-[var(--phase-ovulation)]/20 text-sm text-foreground italic">
+                            <div className="bg-[var(--phase-ovulation-light)] p-3 rounded-2xl border border-[var(--phase-ovulation)]/20 text-sm text-foreground italic shadow-soft">
                                 "{selectedEntry.notes}"
                             </div>
                         )}
                     </div>
                 ) : (
                     date && (
-                        <div className="flex flex-col items-center justify-center py-10 text-muted-foreground gap-4 opacity-60">
-                            <Info className="w-10 h-10 stroke-1" />
-                            <p className="text-sm">Keine Einträge für diesen Tag.</p>
+                        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
+                            <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
+                                <Info className="w-6 h-6 stroke-1" />
+                            </div>
+                            <p className="text-sm font-medium">Keine Einträge</p>
                             <EntryDrawer prefillDate={safeSelectedDateStr}>
-                                <Button variant="outline">
+                                <Button variant="outline" className="rounded-xl">
                                     <Plus className="w-4 h-4 mr-2" />
                                     Eintrag erstellen
                                 </Button>
