@@ -3,14 +3,14 @@
   "short_name": "CycleTrack",
   "description": "Privater Zyklus-Tracker mit Temperaturkurve und Fruchtbarkeitsberechnung",
   "id": "/cycletrack/",
-  "start_url": "/cycletrack/",
-  "scope": "/cycletrack/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "display_override": [
     "standalone"
   ],
-  "background_color": "#FFF5F7",
-  "theme_color": "#FF6B9D",
+  "background_color": "#FFF8F9",
+  "theme_color": "#FFF8F9",
   "orientation": "portrait",
   "lang": "de",
   "dir": "ltr",
@@ -55,20 +55,9 @@
   ],
   "shortcuts": [
     {
-      "name": "Neuer Eintrag",
-      "short_name": "Eintrag",
-      "url": "/cycletrack/entry",
-      "icons": [
-        {
-          "src": "icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    },
-    {
       "name": "Temperaturkurve",
       "short_name": "Kurve",
-      "url": "/cycletrack/chart",
+      "url": "./chart",
       "icons": [
         {
           "src": "icon-192.png",
@@ -79,7 +68,7 @@
     {
       "name": "Kalender",
       "short_name": "Kalender",
-      "url": "/cycletrack/calendar",
+      "url": "./calendar",
       "icons": [
         {
           "src": "icon-192.png",
