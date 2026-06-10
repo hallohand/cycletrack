@@ -39,13 +39,13 @@ export async function streamChat(
     onDone: () => void,
     onError: (error: string) => void
 ): Promise<void> {
-    const url = `${GEMINI_API_BASE}/${MODEL}:streamGenerateContent?alt=sse&key=${apiKey}`;
+    const url = `${GEMINI_API_BASE}/${MODEL}:streamGenerateContent?alt=sse`;
     const contents = buildContents(systemPrompt, messages);
 
     try {
         const res = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
             body: JSON.stringify({
                 system_instruction: {
                     parts: [{ text: systemPrompt }],
@@ -97,9 +97,9 @@ export async function streamChat(
                     if (!jsonStr || jsonStr === '[DONE]') continue;
                     try {
                         const parsed = JSON.parse(jsonStr);
-                        const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
-                        if (text) {
-                            onChunk(text);
+                        const parts: { text?: string }[] = parsed?.candidates?.[0]?.content?.parts || [];
+                        for (const part of parts) {
+                            if (part.text) onChunk(part.text);
                         }
                     } catch {
                         // Skip malformed JSON chunks
@@ -124,14 +124,16 @@ export async function streamChat(
 export async function generateSummary(
     apiKey: string,
     systemPrompt: string,
-    userPrompt: string
+    userPrompt: string,
+    maxOutputTokens: number = 400
 ): Promise<{ text: string; error?: string }> {
-    const url = `${GEMINI_API_BASE}/${MODEL}:generateContent?key=${apiKey}`;
+    const url = `${GEMINI_API_BASE}/${MODEL}:generateContent`;
 
     try {
         const res = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            // Key im Header statt in der URL — URLs landen in Logs/History.
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
             body: JSON.stringify({
                 system_instruction: {
                     parts: [{ text: systemPrompt }],
@@ -141,7 +143,7 @@ export async function generateSummary(
                 ],
                 generationConfig: {
                     temperature: 0.6,
-                    maxOutputTokens: 400,
+                    maxOutputTokens,
                     topP: 0.9,
                     thinkingConfig: {
                         thinkingBudget: 0,
@@ -161,7 +163,8 @@ export async function generateSummary(
         }
 
         const data = await res.json();
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const parts: { text?: string }[] = data?.candidates?.[0]?.content?.parts || [];
+        const text = parts.map(p => p.text || '').join('');
         return { text: text.trim() };
     } catch {
         return { text: '', error: 'Keine Internetverbindung.' };

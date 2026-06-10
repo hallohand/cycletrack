@@ -128,13 +128,21 @@ export async function restructureMemory(): Promise<void> {
     const currentMemory = getMemory();
     if (!apiKey || !currentMemory || currentMemory.length < 100) return;
 
+    // The restructured memory REPLACES the old one — give the model enough
+    // output budget, otherwise a hard token cut permanently truncates facts.
     const result = await generateSummary(
         apiKey,
         RESTRUCTURE_SYSTEM_PROMPT,
-        `Bitte strukturiere diese Patientenakte:\n\n${currentMemory}`
+        `Bitte strukturiere diese Patientenakte:\n\n${currentMemory}`,
+        4000
     );
 
-    if (result.text && result.text.length > 50) {
+    // Plausibilitäts-Guard: Die Restrukturierung darf legitim stark kürzen
+    // (Duplikate entfernen ist ihr Zweck) — ein Längenverhältnis taugt daher
+    // nicht. Stattdessen: Ergebnis muss die geforderten Kategorie-Header
+    // enthalten und nicht trivial kurz sein, sonst Original behalten.
+    const looksStructured = result.text.includes('===') && result.text.length > 100;
+    if (looksStructured) {
         setMemory(result.text.trim());
     }
 }

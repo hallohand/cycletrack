@@ -1,15 +1,17 @@
-import { CycleData, CycleEntry, PeriodFlow, CervixType, LHTestResult, SexType } from './types';
+import { CycleEntry } from './types';
+import { CycleEntrySchema } from './schemas';
 
 const MAX_CSV_SIZE = 2 * 1024 * 1024; // 2MB
 const MAX_CSV_ROWS = 5000;
 
-export function parseFemometerCSV(csvText: string): Record<string, CycleEntry> {
+export function parseFemometerCSV(csvText: string): { entries: Record<string, CycleEntry>; skippedRows: number } {
     if (csvText.length > MAX_CSV_SIZE) {
         throw new Error(`CSV-Datei zu groß (max ${MAX_CSV_SIZE / 1024 / 1024}MB)`);
     }
 
     const lines = csvText.trim().split('\n');
     const entries: Record<string, CycleEntry> = {};
+    let skippedRows = 0;
 
     // Skip header (line 0)
     for (let i = 1; i < lines.length; i++) {
@@ -35,7 +37,6 @@ export function parseFemometerCSV(csvText: string): Record<string, CycleEntry> {
         const sexStr = row[7];
         const mucusStr = row[9];
         const spottingStr = row[10];
-        const symptomsStr = row[12];
         const lhStr = row[13];
 
         // Parse Date: DD.MM.YYYY -> YYYY-MM-DD
@@ -60,8 +61,9 @@ export function parseFemometerCSV(csvText: string): Record<string, CycleEntry> {
             else if (flow === 'Wenig') entry.period = 'light';
             else entry.period = 'medium'; // Default if day exists but no flow
         }
-        // Spotting column?
-        if (spottingStr || flow === 'Schmierblutung') {
+        // Spotting must never downgrade a real period flow on the same day —
+        // that would erase cycle starts during import.
+        if (!entry.period && (spottingStr || flow === 'Schmierblutung')) {
             entry.period = 'spotting';
         }
 
@@ -86,10 +88,25 @@ export function parseFemometerCSV(csvText: string): Record<string, CycleEntry> {
             else if (mucusStr.includes('Trocken')) entry.cervix = 'dry';
         }
 
-        entries[isoDate] = entry;
+        // CSV rows are untrusted input — run them through the same zod
+        // schema as JSON imports so malformed values cannot enter the store.
+        // Ein einzelnes ungültiges Feld (z. B. Fahrenheit-Temperatur) darf
+        // nicht die ganze Zeile samt Periodenmarkierung verwerfen: erst das
+        // verdächtige Feld entfernen und erneut validieren.
+        const validated = CycleEntrySchema.safeParse(entry);
+        if (validated.success) {
+            entries[isoDate] = validated.data;
+        } else {
+            delete entry.temperature;
+            const salvaged = CycleEntrySchema.safeParse(entry);
+            if (salvaged.success && Object.keys(salvaged.data).length > 1) {
+                entries[isoDate] = salvaged.data;
+            }
+            skippedRows++;
+        }
     }
 
-    return entries;
+    return { entries, skippedRows };
 }
 
 // Simple CSV parser handling quotes

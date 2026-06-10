@@ -7,23 +7,12 @@ import {
     CycleState,
     FutureCycle,
     DailyPrediction,
-    CyclePhaseState,
-    DateRangePrediction
+    CyclePhaseState
 } from './types';
 import { toLocalISO } from './utils';
+import { addDays, diffDays } from './date-utils';
 
 // --- Helpers ---
-const MILLIS_PER_DAY = 1000 * 60 * 60 * 24;
-
-function addDays(dateStr: string, days: number): string {
-    const d = new Date(dateStr);
-    d.setDate(d.getDate() + days);
-    return d.toISOString().split('T')[0];
-}
-
-function diffDays(d1: string, d2: string): number {
-    return Math.floor((new Date(d1).getTime() - new Date(d2).getTime()) / MILLIS_PER_DAY);
-}
 
 function median(values: number[]): number {
     if (values.length === 0) return 0;
@@ -158,6 +147,14 @@ function confirmOvulationBBT(cycleEntries: CycleEntry[]): BBTConfirmation {
         const prev6 = validTemps.slice(i - 6, i);
         const next3 = validTemps.slice(i, i + 3);
 
+        // Ultra-sparse Messung: Wenn die 3 Hochwerte mehr als eine Woche
+        // auseinanderliegen, ist keine seriöse Bestätigung möglich.
+        // WICHTIG: kleinere Lücken dürfen das Fenster NICHT verwerfen —
+        // sonst wandern die Hochwerte in prev6 späterer Fenster, heben die
+        // Baseline auf Hochlagen-Niveau und die Bestätigung wird für den
+        // gesamten Zyklus unmöglich (statt sich nur zu verzögern).
+        if (diffDays(next3[2].date, next3[0].date) > 7) continue;
+
         const baseline = Math.max(...prev6.map(e => e.temperature!));
         const threshold = baseline + 0.15; // Slightly relaxed from 0.20 strict NFP
 
@@ -168,11 +165,20 @@ function confirmOvulationBBT(cycleEntries: CycleEntry[]): BBTConfirmation {
             (next3[2].temperature! >= threshold || next3.every(e => e.temperature! >= baseline + 0.05));
 
         if (isShift) {
+            // Datierung: klassisch der Tag vor der ersten Hochmessung. Liegt
+            // zwischen letzter Tief- und erster Hochmessung eine Messlücke,
+            // fand der Anstieg irgendwo darin statt — die Lückenmitte ist
+            // dann die beste Schätzung (statt die Bestätigung zu verweigern).
+            const lastLow = prev6[5];
+            const gap = diffDays(next3[0].date, lastLow.date);
+            const ovuDate = gap <= 1
+                ? addDays(next3[0].date, -1)
+                : addDays(lastLow.date, Math.ceil(gap / 2));
             return {
                 confirmed: true,
-                date: addDays(validTemps[i].date, -1), // Ovulation is day before first high
+                date: ovuDate,
                 coverline: baseline,
-                firstHighDate: validTemps[i].date
+                firstHighDate: next3[0].date
             };
         }
     }
@@ -234,10 +240,11 @@ function analyzeCurrent(
                 state = 'ANOVULATORY_SUSPECTED';
             }
         } else {
-            // Statistical windows
+            // Statistical windows — same basis as the prediction below:
+            // ovulation date = currentStart + estOvu, fertile [Ovu-5, Ovu+1].
             const estOvu = stats.medianCycleLength - stats.medianLutealLength;
-            // Fertile: Ovu - 5 to Ovu + 1
-            if (daysSinceStart >= estOvu - 5 && daysSinceStart <= estOvu + 1) {
+            const dToOvu = diffDays(todayStr, addDays(currentStart, estOvu));
+            if (dToOvu >= -5 && dToOvu <= 1) {
                 state = 'FERTILE_MID';
             }
         }
@@ -260,7 +267,6 @@ function analyzeCurrent(
         ovConf = 'HIGH';
     } else if (latestPeak) {
         // Peak Rule: Ovu is Peak+1 (range +1 to +2)
-        const pDate = new Date(latestPeak);
         ovDateMid = addDays(latestPeak, 1);
         ovDateMin = addDays(latestPeak, 0);
         ovDateMax = addDays(latestPeak, 2);

@@ -17,32 +17,8 @@ export interface CycleGroup {
     }[];
 }
 
-// Helper: Parse YYYY-MM-DD as Local Date at Noon to avoid Timezone shifts
-function parseDateSafe(dateStr: string): Date {
-    // Append T12:00:00 to ensure we are in the middle of the day, 
-    // avoiding midnight shifts due to T00:00:00Z being previous day in Western hemisphere 
-    // or T00:00:00 Local being shifted if not careful.
-    // Actually: new Date('YYYY-MM-DD') is UTC.
-    // We want to work with timestamps that represent differences in DAYS reliably.
-    // Best way: treat everything as UTC for calculation, or force Noon Local.
-
-    // Let's use UTC for calculations to be safe from DST shifts too.
-    const d = new Date(dateStr);
-    // This is UTC midnight.
-    return d;
-}
-
-function diffDays(d1: string, d2: string): number {
-    const t1 = parseDateSafe(d1).getTime();
-    const t2 = parseDateSafe(d2).getTime();
-    return Math.round((t1 - t2) / (1000 * 60 * 60 * 24));
-}
-
-function addDays(dateStr: string, days: number): string {
-    const d = parseDateSafe(dateStr);
-    d.setDate(d.getDate() + days);
-    return d.toISOString().split('T')[0];
-}
+import { addDays, diffDays } from '@/lib/date-utils';
+import { toLocalISO } from '@/lib/utils';
 
 
 export function groupCycles(entriesMap: Record<string, CycleEntry>): CycleGroup[] {
@@ -63,7 +39,7 @@ export function groupCycles(entriesMap: Record<string, CycleEntry>): CycleGroup[
             length = diffDays(nextStart, currentStart);
             endDate = addDays(nextStart, -1);
         } else {
-            const today = new Date().toISOString().split('T')[0];
+            const today = toLocalISO();
             // If today < currentStart (impossible if sorted, but safety)
             if (diffDays(today, currentStart) < 0) {
                 length = currentEntries.length; // Fallback
@@ -74,45 +50,25 @@ export function groupCycles(entriesMap: Record<string, CycleEntry>): CycleGroup[
 
         const periodLength = currentEntries.filter(e => e.period && e.period !== 'spotting').length;
 
-        // Find Ovu Day Index
+        // Find Ovu Day Index (0-based index of ovulation day within the cycle)
         let ovuDayIndex = -1;
 
-        // 1. Check for LH Peak
-        // Find index of LH Peak
+        // 1. LH rule — same convention as the engine: LAST positive/peak test + 1.
         for (let i = 0; i < length; i++) {
             const iso = addDays(currentStart, i);
             const entry = entriesMap[iso];
             if (entry?.lhTest === 'peak' || entry?.lhTest === 'positive') {
-                // Assume ovulation 1 day after LAST positive/peak? Or first?
-                // Simple rule: First Peak + 1. 
-                // Let's iterate found entires properly? 
-                // Actually we can just find it in currentEntries list if easier, 
-                // but mapping index 'i' is better.
-                if (ovuDayIndex === -1) {
-                    ovuDayIndex = i + 1; // Ovulation day
-                }
+                ovuDayIndex = i + 1;
             }
         }
 
-        // 2. Fallback to Length - 14
-        if (ovuDayIndex === -1 && length >= 20) {
+        // 2. Fallback: ovulation ≈ 14 days before the next cycle start.
+        // Only valid for COMPLETED cycles — for the running cycle `length`
+        // grows with every day, so the marker would wander daily.
+        if (ovuDayIndex === -1 && nextStart && length >= 20) {
+            // Engine convention: ovu offset = cycleLength - lutealLength,
+            // i.e. 0-based index length - 14.
             ovuDayIndex = length - 14;
-            // 0-indexed: Day 14 is index 13. 
-            // If length 28. Ovu is 14 (Day 15?). 28-14 = 14.
-            // If length 28, cycle is [0..27]. 
-            // Ovu usually Day 14 (index 13)?? No, Day 14 before end.
-            // If Start Jan 1. End Jan 28. Length 28.
-            // Next start Jan 29.
-            // Luteal phase starts after Ovu.
-            // Ovu = End - 14. 
-            // Jan 28 - 14 = Jan 14. 
-            // Index 13 (Day 14). Correct.
-            // But code was `i === ovuDayIndex - 1`. 
-            // If index is 14, i==13 is true. 
-            // So code effectively used index 13.
-
-            // Let's standardize: ovuDayIndex is the 0-based index of ovulation day.
-            ovuDayIndex = length - 14 - 1;
         }
 
         const visDays = [];
@@ -157,7 +113,7 @@ export function groupCycles(entriesMap: Record<string, CycleEntry>): CycleGroup[
         });
     }
 
-    entries.forEach((e, i) => {
+    entries.forEach((e) => {
         let isNewCycle = false;
 
         if (e.period) {

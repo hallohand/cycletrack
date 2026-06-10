@@ -57,10 +57,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                 Daten exportieren
               </button>
               <button
-                onClick={() => {
-                  localStorage.clear();
-                  window.location.reload();
-                }}
+                onClick={resetAppData}
                 className="w-full rounded-xl bg-destructive/10 px-4 py-3 text-sm font-semibold text-destructive hover:bg-destructive/20 transition-colors"
               >
                 Daten löschen &amp; neu starten
@@ -74,6 +71,22 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     return this.props.children;
   }
 }
+
+const resetAppData = () => {
+  const confirmed = window.confirm(
+    'Wirklich ALLE lokalen Daten löschen? Dieser Schritt kann nicht rückgängig gemacht werden. ' +
+    'Eine letzte Rettungskopie der Zyklusdaten wird intern aufbewahrt.'
+  );
+  if (!confirmed) return;
+  try {
+    const rescue = localStorage.getItem('cycletrack_data');
+    localStorage.clear();
+    if (rescue) localStorage.setItem('cycletrack_data_pre_reset', rescue);
+  } catch (e) {
+    console.error('Reset failed', e);
+  }
+  window.location.reload();
+};
 
 const exportData = () => {
   try {

@@ -9,7 +9,7 @@ const SexSchema = z.enum(['protected', 'unprotected', 'none']);
 const MoodSchema = z.enum(['happy', 'sad', 'anxious', 'irritated', 'energetic', 'tired', 'moodswings']);
 const PainSchema = z.enum(['light', 'medium', 'strong', 'extreme']);
 
-const CycleEntrySchema = z.object({
+export const CycleEntrySchema = z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Datum muss YYYY-MM-DD Format haben'),
     temperature: z.number().min(34).max(42).nullable().optional(),
     excludeTemp: z.boolean().optional(),
@@ -24,11 +24,14 @@ const CycleEntrySchema = z.object({
     isOvulation: z.boolean().optional(),
 }).strip();
 
+// Bewusst KEINE .default()-Werte: fehlende Settings müssen fehlend bleiben,
+// damit ein Import/Restore ohne Settings die Nutzerwerte nicht auf
+// Schema-Defaults zurücksetzt (Präsenz-Erkennung in CycleContext.importData).
 const CycleDataSchema = z.object({
     entries: z.record(z.string(), CycleEntrySchema),
-    cycleLength: z.number().int().min(15).max(60).optional().default(28),
-    periodLength: z.number().int().min(1).max(15).optional().default(5),
-    lutealPhase: z.number().int().min(5).max(25).optional().default(14),
+    cycleLength: z.number().int().min(15).max(60).optional(),
+    periodLength: z.number().int().min(1).max(15).optional(),
+    lutealPhase: z.number().int().min(5).max(25).optional(),
     onboardingCompleted: z.boolean().optional(),
 }).strip();
 
@@ -46,7 +49,7 @@ export function validateImportData(jsonString: string): ValidationResult {
     const warnings: string[] = [];
 
     // Step 1: Parse JSON
-    let raw: any;
+    let raw: unknown;
     try {
         raw = JSON.parse(jsonString);
     } catch (e) {
@@ -57,7 +60,8 @@ export function validateImportData(jsonString: string): ValidationResult {
     if (!raw || typeof raw !== 'object') {
         return { success: false, error: 'Kein gültiges Objekt', details: [] };
     }
-    if (!raw.entries || typeof raw.entries !== 'object') {
+    const rawObj = raw as Record<string, unknown>;
+    if (!rawObj.entries || typeof rawObj.entries !== 'object') {
         return { success: false, error: 'Kein "entries" Feld gefunden', details: [] };
     }
 
@@ -65,7 +69,7 @@ export function validateImportData(jsonString: string): ValidationResult {
     const cleanEntries: Record<string, z.infer<typeof CycleEntrySchema>> = {};
     let skippedCount = 0;
 
-    for (const [key, value] of Object.entries(raw.entries)) {
+    for (const [key, value] of Object.entries(rawObj.entries as Record<string, unknown>)) {
         const result = CycleEntrySchema.safeParse(value);
         if (result.success) {
             cleanEntries[key] = result.data;
@@ -76,15 +80,15 @@ export function validateImportData(jsonString: string): ValidationResult {
     }
 
     if (skippedCount > 0) {
-        warnings.unshift(`${skippedCount} von ${Object.keys(raw.entries).length} Einträgen wurden übersprungen (ungültig).`);
+        warnings.unshift(`${skippedCount} von ${Object.keys(rawObj.entries as Record<string, unknown>).length} Einträgen wurden übersprungen (ungültig).`);
     }
 
-    if (Object.keys(cleanEntries).length === 0 && Object.keys(raw.entries).length > 0) {
+    if (Object.keys(cleanEntries).length === 0 && Object.keys(rawObj.entries as Record<string, unknown>).length > 0) {
         return { success: false, error: 'Alle Einträge waren ungültig', details: warnings };
     }
 
     // Step 4: Validate metadata
-    const metaResult = CycleDataSchema.safeParse({ ...raw, entries: cleanEntries });
+    const metaResult = CycleDataSchema.safeParse({ ...rawObj, entries: cleanEntries });
     if (!metaResult.success) {
         return { success: false, error: 'Metadaten ungültig', details: metaResult.error.issues.map(i => i.message) };
     }

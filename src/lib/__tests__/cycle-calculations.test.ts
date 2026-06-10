@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { runEngine } from '../cycle-calculations';
 import { CycleData, CycleEntry, DEFAULT_CYCLE_DATA } from '../types';
 
@@ -210,5 +210,95 @@ describe('runEngine', () => {
 
     const result = runEngine(data);
     expect(result.currentCycle.startDate).toBe('2025-01-01');
+  });
+
+  // Regression: FERTILE_MID compared the 1-based cycle day with the 0-based
+  // ovulation offset, shifting the statistical fertile window by one day.
+  describe('FERTILE_MID statistical window (today mocked to 2025-04-01)', () => {
+    function cycleStartingAt(start: string): CycleData {
+      return {
+        ...DEFAULT_CYCLE_DATA,
+        entries: makeEntries([{ date: start, period: 'medium' }]),
+      };
+    }
+
+    it('includes Ovu+1 (predicted ovulation + 1 day)', () => {
+      // default stats: estOvu offset 14 → ovulation = start + 14
+      // start 2025-03-17 → ovulation 2025-03-31, today is Ovu+1
+      const result = runEngine(cycleStartingAt('2025-03-17'));
+      expect(result.currentCycle.state).toBe('FERTILE_MID');
+      expect(result.currentCycle.ovulationPred?.mid).toBe('2025-03-31');
+    });
+
+    it('includes Ovu-5', () => {
+      // start 2025-03-23 → ovulation 2025-04-06, today is Ovu-5
+      const result = runEngine(cycleStartingAt('2025-03-23'));
+      expect(result.currentCycle.state).toBe('FERTILE_MID');
+    });
+
+    it('excludes Ovu-6 (previously wrongly fertile)', () => {
+      // start 2025-03-24 → ovulation 2025-04-07, today is Ovu-6
+      const result = runEngine(cycleStartingAt('2025-03-24'));
+      expect(result.currentCycle.state).toBe('PRE_FERTILE');
+    });
+
+    it('excludes Ovu+2', () => {
+      // start 2025-03-16 → ovulation 2025-03-30, today is Ovu+2
+      const result = runEngine(cycleStartingAt('2025-03-16'));
+      expect(result.currentCycle.state).not.toBe('FERTILE_MID');
+    });
+  });
+
+  // Regression: the 3-over-6 rule operated on measurement indices and dated
+  // ovulation from the first high even across measurement gaps. Gaps must
+  // DELAY/date-adjust the confirmation, never make it impossible for the
+  // whole cycle (skipped windows pollute later baselines with high values).
+  describe('BBT confirmation with measurement gaps', () => {
+    function buildCycle(highDayOffsets: number[], lowDays = 6): CycleData {
+      const start = '2025-03-01';
+      const entries: CycleEntry[] = [];
+      for (let i = 0; i < 5; i++) {
+        entries.push({ date: dateOffset(start, i), period: 'medium' });
+      }
+      // consecutive low temps starting at day 5
+      const lows = [36.2, 36.25, 36.18, 36.3, 36.22, 36.28, 36.24];
+      for (let i = 0; i < lowDays; i++) {
+        entries.push({ date: dateOffset(start, i + 5), temperature: lows[i % lows.length] });
+      }
+      // high temps at the given offsets
+      const highs = [36.45, 36.48, 36.55, 36.5, 36.52, 36.49];
+      highDayOffsets.forEach((off, i) =>
+        entries.push({ date: dateOffset(start, off), temperature: highs[i % highs.length] }));
+      return { ...DEFAULT_CYCLE_DATA, entries: makeEntries(entries) };
+    }
+
+    it('confirms with 3 consecutive high days (classic dating: first high - 1)', () => {
+      const result = runEngine(buildCycle([11, 12, 13]));
+      expect(result.currentCycle.ovulationConfirmedDate).toBe(dateOffset('2025-03-01', 10));
+    });
+
+    it('confirms across a measurement gap and dates ovulation mid-gap', () => {
+      // last low day 10, first high day 15 -> gap 5 -> ovulation = day 10 + ceil(5/2) = 13
+      const result = runEngine(buildCycle([15, 16, 17]));
+      expect(result.currentCycle.ovulationConfirmedDate).toBe(dateOffset('2025-03-01', 13));
+    });
+
+    it('confirms despite excluded fever days before the rise (reviewer scenario)', () => {
+      // lows days 5-11 (7 lows), days 12-13 missing (excludeTemp), highs from day 14
+      // gap last low (11) -> first high (14) = 3 -> ovulation = day 11 + 2 = 13
+      const result = runEngine(buildCycle([14, 15, 16, 17, 18, 19], 7));
+      expect(result.currentCycle.ovulationConfirmedDate).toBe(dateOffset('2025-03-01', 13));
+    });
+
+    it('confirms for a sparse measurer with a weekend gap within the highs', () => {
+      // highs day 14, 15, 18 — span 4 days, within the 7-day limit
+      const result = runEngine(buildCycle([14, 15, 18], 7));
+      expect(result.currentCycle.ovulationConfirmedDate).toBeDefined();
+    });
+
+    it('does not confirm when the 3 highs span more than a week (ultra-sparse)', () => {
+      const result = runEngine(buildCycle([11, 16, 21]));
+      expect(result.currentCycle.ovulationConfirmedDate).toBeUndefined();
+    });
   });
 });

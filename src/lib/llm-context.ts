@@ -4,6 +4,8 @@
 import { CycleData, EngineResult } from '@/lib/types';
 import { CycleGroup, groupCycles } from '@/lib/history-utils';
 import { getMemoryPromptSection } from '@/lib/ai-memory';
+import { toLocalISO } from '@/lib/utils';
+import { parseDateForDisplay } from '@/lib/date-utils';
 
 interface CycleContext {
     heute: string;
@@ -45,7 +47,9 @@ function getRecentTemps(data: CycleData, days: number = 7): number[] {
     for (let i = days - 1; i >= 0; i--) {
         const d = new Date(today);
         d.setDate(d.getDate() - i);
-        const iso = d.toISOString().split('T')[0];
+        // Entries are keyed by LOCAL calendar day — UTC keys would read the
+        // wrong day in the evening/night hours.
+        const iso = toLocalISO(d);
         const entry = data.entries?.[iso];
         if (entry?.temperature) {
             temps.push(entry.temperature);
@@ -89,12 +93,12 @@ function detectAnomalies(engine: EngineResult, cycles: CycleGroup[]): string[] {
 }
 
 function formatDateDE(iso: string): string {
-    return new Date(iso).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
+    return parseDateForDisplay(iso).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
 }
 
 export function buildCycleContext(data: CycleData, engine: EngineResult): CycleContext {
     const cc = engine.currentCycle;
-    const today = new Date().toISOString().split('T')[0];
+    const today = toLocalISO();
     const prediction = engine.predictions.today;
     const cycles = groupCycles(data.entries || {});
     const temps = getRecentTemps(data, 10);

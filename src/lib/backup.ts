@@ -1,4 +1,4 @@
-import { CycleData, DEFAULT_CYCLE_DATA } from './types';
+import { CycleData } from './types';
 import { validateImportData } from './schemas';
 
 const BACKUP_KEY_1 = 'cycletrack_backup_1';
@@ -6,27 +6,56 @@ const BACKUP_KEY_2 = 'cycletrack_backup_2';
 const BACKUP_TIMESTAMP_KEY = 'cycletrack_backup_timestamp';
 const GIST_ID_KEY = 'cycletrack_gist_id';
 const GIST_TOKEN_KEY = 'cycletrack_gist_token';
-const DB_NAME = 'cycletrack_backups';
-const DB_STORE = 'snapshots';
-const MAX_SNAPSHOTS = 30;
+const BACKUP_PASSPHRASE_KEY = 'cycletrack_backup_passphrase';
+const ROTATION_INTERVAL_MS = 24 * 60 * 60 * 1000; // promote a generation at most once per day
 
 // --- Local Rotation Backup ---
+// Two-tier design: slot 1 always mirrors the latest persisted state,
+// slot 2 holds a generation that is at least ROTATION_INTERVAL_MS old.
+// Without the time gate both slots converge to the current state after
+// two writes and protect against nothing.
 
 interface BackupSlot {
     timestamp: string;
     data: CycleData;
 }
 
+function entryCount(data: CycleData | undefined | null): number {
+    return data?.entries ? Object.keys(data.entries).length : 0;
+}
+
 export function rotateLocalBackup(currentData: CycleData) {
     try {
-        const now = new Date().toISOString();
-        const prev1Raw = localStorage.getItem(BACKUP_KEY_1);
-        if (prev1Raw) {
-            localStorage.setItem(BACKUP_KEY_2, prev1Raw);
+        const { backup1, backup2 } = getLocalBackups();
+        const curCount = entryCount(currentData);
+        const prevCount = entryCount(backup1?.data);
+
+        // Guard 1: never replace a backup that has entries with an empty state.
+        // An empty state after a failed load or clearAllData must not be able
+        // to destroy the last good copy.
+        if (curCount === 0 && prevCount > 0) {
+            return;
         }
-        const newSlot: BackupSlot = { timestamp: now, data: currentData };
+
+        const now = Date.now();
+        const lastRotation = parseInt(localStorage.getItem(BACKUP_TIMESTAMP_KEY) || '0', 10);
+
+        // Guard 2: a drastically shrunken state (e.g. first entry after a
+        // corrupt load) must not silently overwrite the last good generation —
+        // promote it to slot 2 first, regardless of the time gate.
+        const shrunkDrastically = prevCount >= 10 && curCount < prevCount / 2;
+        // Guard 3: never promote a small slot 1 over a much richer slot 2.
+        const promotionSafe = !(entryCount(backup2?.data) >= 10 && prevCount < entryCount(backup2?.data) / 2);
+
+        if (backup1 && (now - lastRotation > ROTATION_INTERVAL_MS || shrunkDrastically) && promotionSafe) {
+            localStorage.setItem(BACKUP_KEY_2, JSON.stringify(backup1));
+            localStorage.setItem(BACKUP_TIMESTAMP_KEY, String(now));
+        } else if (!localStorage.getItem(BACKUP_TIMESTAMP_KEY)) {
+            localStorage.setItem(BACKUP_TIMESTAMP_KEY, String(now));
+        }
+
+        const newSlot: BackupSlot = { timestamp: new Date().toISOString(), data: currentData };
         localStorage.setItem(BACKUP_KEY_1, JSON.stringify(newSlot));
-        localStorage.removeItem(BACKUP_TIMESTAMP_KEY);
     } catch (e) {
         console.warn('Backup rotation failed:', e);
     }
@@ -49,11 +78,7 @@ export function getLocalBackups(): {
             }
 
             // Fallback: Old format (raw CycleData)
-            // Does it have "entries"? Then it's likely CycleData
             if (parsed.entries) {
-                // Approximate timestamp? No, just use "Unknown" or null.
-                // Or try to recover from the deprecated global key if it's backup 1?
-                // Let's just return it with "Legacy" timestamp.
                 return { data: parsed, timestamp: 'Legacy' };
             }
             return null;
@@ -68,97 +93,91 @@ export function getLocalBackups(): {
     };
 }
 
-// --- IndexedDB Snapshots (for larger/persistent backups) ---
+// --- Encryption (AES-GCM, key derived via PBKDF2-SHA256) ---
+// The gist backup leaves the device; health data must never travel in
+// plaintext. The passphrase stays on the device (the device already holds
+// the plaintext data — the threat model is the remote copy).
 
-function openDB(): Promise<IDBDatabase> {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, 1);
-        request.onupgradeneeded = () => {
-            const db = request.result;
-            if (!db.objectStoreNames.contains(DB_STORE)) {
-                const store = db.createObjectStore(DB_STORE, { keyPath: 'id', autoIncrement: true });
-                store.createIndex('timestamp', 'timestamp');
-            }
-        };
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-    });
+const ENCRYPTED_FORMAT = 'cycletrack-encrypted-v1';
+const PBKDF2_ITERATIONS = 310_000;
+
+export interface EncryptedPayload {
+    format: typeof ENCRYPTED_FORMAT;
+    kdf: 'PBKDF2-SHA256';
+    iterations: number;
+    salt: string; // base64
+    iv: string; // base64
+    ciphertext: string; // base64
 }
 
-export async function saveIndexedDBSnapshot(data: CycleData): Promise<void> {
-    try {
-        const db = await openDB();
-        const tx = db.transaction(DB_STORE, 'readwrite');
-        const store = tx.objectStore(DB_STORE);
-
-        store.add({
-            timestamp: new Date().toISOString(),
-            data: JSON.stringify(data),
-        });
-
-        // Prune old snapshots beyond MAX_SNAPSHOTS
-        const countReq = store.count();
-        countReq.onsuccess = () => {
-            if (countReq.result > MAX_SNAPSHOTS) {
-                const cursorReq = store.openCursor();
-                let deleted = 0;
-                const toDelete = countReq.result - MAX_SNAPSHOTS;
-                cursorReq.onsuccess = () => {
-                    const cursor = cursorReq.result;
-                    if (cursor && deleted < toDelete) {
-                        cursor.delete();
-                        deleted++;
-                        cursor.continue();
-                    }
-                };
-            }
-        };
-
-        return new Promise((resolve, reject) => {
-            tx.oncomplete = () => resolve();
-            tx.onerror = () => reject(tx.error);
-        });
-    } catch (e) {
-        console.warn('IndexedDB snapshot failed:', e);
-    }
+function bufToB64(buf: ArrayBuffer | Uint8Array): string {
+    const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+    let bin = '';
+    for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
 }
 
-export async function getIndexedDBSnapshots(): Promise<Array<{ id: number; timestamp: string; data: string }>> {
-    try {
-        const db = await openDB();
-        const tx = db.transaction(DB_STORE, 'readonly');
-        const store = tx.objectStore(DB_STORE);
-        const request = store.getAll();
-
-        return new Promise((resolve, reject) => {
-            request.onsuccess = () => resolve(request.result || []);
-            request.onerror = () => reject(request.error);
-        });
-    } catch {
-        return [];
-    }
+function b64ToBuf(b64: string): Uint8Array {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
 }
 
-export async function restoreFromIndexedDB(id: number): Promise<CycleData | null> {
-    try {
-        const db = await openDB();
-        const tx = db.transaction(DB_STORE, 'readonly');
-        const store = tx.objectStore(DB_STORE);
-        const request = store.get(id);
+async function deriveKey(passphrase: string, salt: Uint8Array, iterations: number): Promise<CryptoKey> {
+    const keyMaterial = await crypto.subtle.importKey(
+        'raw', new TextEncoder().encode(passphrase), 'PBKDF2', false, ['deriveKey']
+    );
+    return crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt: salt as BufferSource, iterations, hash: 'SHA-256' },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+    );
+}
 
-        return new Promise((resolve, reject) => {
-            request.onsuccess = () => {
-                if (request.result) {
-                    resolve(JSON.parse(request.result.data));
-                } else {
-                    resolve(null);
-                }
-            };
-            request.onerror = () => reject(request.error);
-        });
-    } catch {
-        return null;
-    }
+export async function encryptBackup(plaintext: string, passphrase: string): Promise<EncryptedPayload> {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await deriveKey(passphrase, salt, PBKDF2_ITERATIONS);
+    const ciphertext = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv: iv as BufferSource }, key, new TextEncoder().encode(plaintext)
+    );
+    return {
+        format: ENCRYPTED_FORMAT,
+        kdf: 'PBKDF2-SHA256',
+        iterations: PBKDF2_ITERATIONS,
+        salt: bufToB64(salt),
+        iv: bufToB64(iv),
+        ciphertext: bufToB64(ciphertext),
+    };
+}
+
+export async function decryptBackup(payload: EncryptedPayload, passphrase: string): Promise<string> {
+    const key = await deriveKey(passphrase, b64ToBuf(payload.salt), payload.iterations);
+    const plain = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: b64ToBuf(payload.iv) as BufferSource },
+        key,
+        b64ToBuf(payload.ciphertext) as BufferSource
+    );
+    return new TextDecoder().decode(plain);
+}
+
+export function isEncryptedPayload(value: unknown): value is EncryptedPayload {
+    return !!value && typeof value === 'object'
+        && (value as EncryptedPayload).format === ENCRYPTED_FORMAT
+        && typeof (value as EncryptedPayload).ciphertext === 'string';
+}
+
+export function getBackupPassphrase(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(BACKUP_PASSPHRASE_KEY);
+}
+
+export function setBackupPassphrase(passphrase: string) {
+    if (passphrase) localStorage.setItem(BACKUP_PASSPHRASE_KEY, passphrase);
+    else localStorage.removeItem(BACKUP_PASSPHRASE_KEY);
 }
 
 // --- GitHub Gist Cloud Backup ---
@@ -180,12 +199,23 @@ export function clearGistConfig() {
     localStorage.removeItem(GIST_ID_KEY);
 }
 
+const GIST_FILENAME = 'cycletrack_backup.json';
+
 export async function syncToGist(data: CycleData, retryCount = 0): Promise<{ success: boolean; gistId?: string; error?: string }> {
     const { token, gistId } = getGistConfig();
     if (!token) return { success: false, error: 'Kein GitHub Token konfiguriert' };
 
-    const content = JSON.stringify(data, null, 2);
-    const filename = 'cycletrack_backup.json';
+    let content: string;
+    const passphrase = getBackupPassphrase();
+    if (passphrase) {
+        try {
+            content = JSON.stringify(await encryptBackup(JSON.stringify(data), passphrase), null, 2);
+        } catch (e) {
+            return { success: false, error: 'Verschlüsselung fehlgeschlagen: ' + (e instanceof Error ? e.message : String(e)) };
+        }
+    } else {
+        content = JSON.stringify(data, null, 2);
+    }
 
     try {
         if (gistId) {
@@ -198,7 +228,7 @@ export async function syncToGist(data: CycleData, retryCount = 0): Promise<{ suc
                 },
                 body: JSON.stringify({
                     description: `CycleTrack Backup — ${new Date().toLocaleString('de-DE')}`,
-                    files: { [filename]: { content } },
+                    files: { [GIST_FILENAME]: { content } },
                 }),
             });
 
@@ -226,7 +256,7 @@ export async function syncToGist(data: CycleData, retryCount = 0): Promise<{ suc
                 body: JSON.stringify({
                     description: `CycleTrack Backup — ${new Date().toLocaleString('de-DE')}`,
                     public: false,
-                    files: { [filename]: { content } },
+                    files: { [GIST_FILENAME]: { content } },
                 }),
             });
 
@@ -245,9 +275,12 @@ export async function syncToGist(data: CycleData, retryCount = 0): Promise<{ suc
     }
 }
 
-export async function restoreFromGist(): Promise<{ data: CycleData | null; error?: string }> {
+// Liefert das validierte Backup als ROH-JSON-String (nicht mit Defaults
+// angereichert): der Konsument gibt ihn an importData weiter, das fehlende
+// Settings-Felder erkennen muss, um Nutzerwerte nicht zurückzusetzen.
+export async function restoreFromGist(): Promise<{ json: string | null; error?: string }> {
     const { token, gistId } = getGistConfig();
-    if (!token || !gistId) return { data: null, error: 'Kein GitHub Token oder Gist ID konfiguriert' };
+    if (!token || !gistId) return { json: null, error: 'Kein GitHub Token oder Gist ID konfiguriert' };
 
     try {
         const res = await fetch(`https://api.github.com/gists/${gistId}`, {
@@ -255,21 +288,47 @@ export async function restoreFromGist(): Promise<{ data: CycleData | null; error
         });
 
         if (!res.ok) {
-            return { data: null, error: `HTTP ${res.status}` };
+            return { json: null, error: `HTTP ${res.status}` };
         }
 
         const gist = await res.json();
-        const file = gist.files['cycletrack_backup.json'];
-        if (!file) return { data: null, error: 'Backup-Datei nicht im Gist gefunden' };
+        const file = gist.files[GIST_FILENAME];
+        if (!file) return { json: null, error: 'Backup-Datei nicht im Gist gefunden' };
 
-        const validation = validateImportData(file.content);
-        if (!validation.success) {
-            return { data: null, error: 'Backup-Daten ungültig: ' + validation.error };
+        // The gist API truncates file contents > 1 MB — fetch raw if needed.
+        let content: string = file.content;
+        if (file.truncated && file.raw_url) {
+            const rawRes = await fetch(file.raw_url);
+            if (!rawRes.ok) return { json: null, error: `Backup unvollständig (HTTP ${rawRes.status})` };
+            content = await rawRes.text();
         }
-        return { data: { ...DEFAULT_CYCLE_DATA, ...validation.data } };
+
+        // Transparently decrypt the new encrypted format.
+        try {
+            const maybeEncrypted = JSON.parse(content);
+            if (isEncryptedPayload(maybeEncrypted)) {
+                const passphrase = getBackupPassphrase();
+                if (!passphrase) {
+                    return { json: null, error: 'Backup ist verschlüsselt — bitte Passphrase in den Einstellungen hinterlegen.' };
+                }
+                try {
+                    content = await decryptBackup(maybeEncrypted, passphrase);
+                } catch {
+                    return { json: null, error: 'Entschlüsselung fehlgeschlagen — falsche Passphrase?' };
+                }
+            }
+        } catch {
+            // not JSON at all — fall through to validation, which will report it
+        }
+
+        const validation = validateImportData(content);
+        if (!validation.success) {
+            return { json: null, error: 'Backup-Daten ungültig: ' + validation.error };
+        }
+        return { json: content };
     } catch (e: unknown) {
         const message = e instanceof Error ? e.message : 'Netzwerkfehler';
-        return { data: null, error: message };
+        return { json: null, error: message };
     }
 }
 
@@ -282,6 +341,10 @@ export function debouncedCloudSync(data: CycleData) {
     const { token } = getGistConfig();
     if (!token) return; // No token configured, skip
 
+    // Never auto-sync an empty state over a cloud backup — an explicit
+    // "Jetzt sichern" in the settings is required for that.
+    if (entryCount(data) === 0) return;
+
     if (syncTimeout) clearTimeout(syncTimeout);
     syncTimeout = setTimeout(() => {
         syncToGist(data).then(result => {
@@ -290,4 +353,11 @@ export function debouncedCloudSync(data: CycleData) {
             }
         });
     }, SYNC_DEBOUNCE_MS);
+}
+
+export function cancelPendingCloudSync() {
+    if (syncTimeout) {
+        clearTimeout(syncTimeout);
+        syncTimeout = null;
+    }
 }

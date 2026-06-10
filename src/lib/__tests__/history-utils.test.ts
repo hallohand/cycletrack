@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { groupCycles, CycleGroup } from '../history-utils';
+import { groupCycles } from '../history-utils';
 import { CycleEntry } from '../types';
 
 function makeEntries(entries: CycleEntry[]): Record<string, CycleEntry> {
@@ -110,5 +110,53 @@ describe('groupCycles', () => {
     const cycle1 = cycles.find(c => c.startDate === '2025-01-01');
     expect(cycle1).toBeDefined();
     expect(cycle1!.length).toBe(29);
+  });
+
+  // Regression: fallback ovulation marker was off by one vs. the engine and
+  // was applied to the RUNNING cycle, where it wandered one day per day.
+  describe('fallback ovulation marker', () => {
+    it('marks index length-14 for a completed cycle (consistent with engine)', () => {
+      const entries: CycleEntry[] = [];
+      for (let i = 0; i < 5; i++) {
+        entries.push({ date: dateOffset('2025-01-01', i), period: 'medium' });
+      }
+      for (let i = 0; i < 5; i++) {
+        entries.push({ date: dateOffset('2025-01-29', i), period: 'medium' });
+      }
+
+      const cycles = groupCycles(makeEntries(entries));
+      const completed = cycles.find(c => c.startDate === '2025-01-01')!;
+      // length 28 → 0-based ovulation index 14 (cycle day 15)
+      const ovuIndex = completed.days.findIndex(d => d.isOvulation);
+      expect(ovuIndex).toBe(14);
+    });
+
+    it('does not invent an ovulation marker for the running cycle', () => {
+      const entries: CycleEntry[] = [];
+      for (let i = 0; i < 5; i++) {
+        entries.push({ date: dateOffset('2025-01-01', i), period: 'medium' });
+      }
+
+      const cycles = groupCycles(makeEntries(entries));
+      const running = cycles.find(c => c.startDate === '2025-01-01')!;
+      expect(running.days.some(d => d.isOvulation)).toBe(false);
+    });
+
+    it('uses the LAST positive/peak LH test + 1 (engine convention)', () => {
+      const entries: CycleEntry[] = [];
+      for (let i = 0; i < 5; i++) {
+        entries.push({ date: dateOffset('2025-01-01', i), period: 'medium' });
+      }
+      entries.push({ date: dateOffset('2025-01-01', 12), lhTest: 'positive' });
+      entries.push({ date: dateOffset('2025-01-01', 13), lhTest: 'peak' });
+      for (let i = 0; i < 5; i++) {
+        entries.push({ date: dateOffset('2025-01-29', i), period: 'medium' });
+      }
+
+      const cycles = groupCycles(makeEntries(entries));
+      const cycle1 = cycles.find(c => c.startDate === '2025-01-01')!;
+      const ovuIndex = cycle1.days.findIndex(d => d.isOvulation);
+      expect(ovuIndex).toBe(14); // last peak (index 13) + 1
+    });
   });
 });
