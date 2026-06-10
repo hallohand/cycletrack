@@ -55,6 +55,18 @@ export function Blob({ variant = 'hero', className = '', color }: BlobProps) {
   );
 }
 
+// Bogenfarbe folgt der aktuellen Zyklusphase — der Ring erzählt damit
+// denselben Zustand wie die Status-Pille darunter.
+const PHASE_RING_COLOR: Record<string, string> = {
+  'MENSTRUATION': 'var(--phase-period)',
+  'PRE_FERTILE': 'var(--primary)',
+  'FERTILE_MID': 'var(--phase-fertile)',
+  'PEAK_LH': 'var(--phase-ovulation)',
+  'POST_OVU_PENDING': 'var(--phase-ovulation)',
+  'OVU_CONFIRMED': 'var(--phase-luteal)',
+  'ANOVULATORY_SUSPECTED': 'var(--muted-foreground)',
+};
+
 export function CycleRing({
   day,
   totalDays,
@@ -71,21 +83,11 @@ export function CycleRing({
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - progress);
+  const ringColor = PHASE_RING_COLOR[phase] || 'var(--primary)';
 
-  // Phase color segments
-  const periodEnd = 0.18; // ~5/28
-  const fertileStart = 0.32;
-  const fertileEnd = 0.54;
-  const ovuPoint = 0.5;
-
-  const getPhaseColor = (t: number) => {
-    if (t < periodEnd) return 'var(--phase-period)';
-    if (t < fertileStart) return 'var(--phase-luteal)';
-    if (t < fertileEnd) return 'var(--phase-fertile)';
-    if (t < fertileEnd + 0.04) return 'var(--phase-ovulation)';
-    return 'var(--phase-luteal)';
-  };
-
+  // Beim Einstieg zeichnet sich der Bogen von 0 zum Zielwert: @starting-style
+  // setzt den Startzustand, die CSS-Transition (.cycle-ring-progress,
+  // kräftiges ease-out) übernimmt — kein JS-State nötig.
   const phaseLabel: Record<string, string> = {
     'MENSTRUATION': 'Periode',
     'PRE_FERTILE': 'Follikelphase',
@@ -97,8 +99,13 @@ export function CycleRing({
   };
 
   return (
-    <div className="relative" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="transform -rotate-90">
+    <div
+      className={`relative ${phase === 'PEAK_LH' ? 'glow-ovulation rounded-full' : ''}`}
+      style={{ width: size, height: size }}
+      role="img"
+      aria-label={`Zyklustag ${day} von ${Math.round(totalDays)}, ${phaseLabel[phase] || phase}`}
+    >
+      <svg width={size} height={size} className="transform -rotate-90" aria-hidden="true">
         {/* Background track */}
         <circle
           cx={size / 2}
@@ -109,20 +116,22 @@ export function CycleRing({
           strokeWidth={strokeWidth}
           strokeLinecap="round"
         />
-        {/* Progress gradient — using conic gradient via multiple segments */}
+        {/* Progress arc */}
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="var(--primary)"
+          stroke={ringColor}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          className="transition-all duration-700 ease-out"
+          className="cycle-ring-progress"
           style={{
-            filter: 'drop-shadow(0 0 6px rgba(232, 102, 139, 0.3))',
+            filter: 'drop-shadow(0 0 6px color-mix(in srgb, currentColor 30%, transparent))',
+            color: ringColor,
+            ['--ring-circumference' as string]: `${circumference}`,
           }}
         />
       </svg>

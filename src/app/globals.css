@@ -2,27 +2,32 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* Typography: Lora (headings) + Raleway (body) */
-@import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&family=Raleway:wght@300;400;500;600;700&display=swap');
+/* Typografie: Lora (Überschriften) + Raleway (Fließtext) — selbst gehostet
+   via next/font (siehe layout.tsx). Kein externes @import: offline-fähig,
+   kein Render-Blocking, CSP ohne Google-Fonts-Hosts. */
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: 'Raleway', system-ui, sans-serif;
-  --font-serif: 'Lora', Georgia, serif;
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-raleway), system-ui, sans-serif;
+  --font-serif: var(--font-lora), Georgia, serif;
+  --font-mono: ui-monospace, monospace;
 
   /* Semantic phase colors */
   --color-phase-period: var(--phase-period);
   --color-phase-period-light: var(--phase-period-light);
+  --color-phase-period-text: var(--phase-period-text);
   --color-phase-fertile: var(--phase-fertile);
   --color-phase-fertile-light: var(--phase-fertile-light);
+  --color-phase-fertile-text: var(--phase-fertile-text);
   --color-phase-ovulation: var(--phase-ovulation);
   --color-phase-ovulation-light: var(--phase-ovulation-light);
+  --color-phase-ovulation-text: var(--phase-ovulation-text);
   --color-phase-luteal: var(--phase-luteal);
   --color-phase-luteal-light: var(--phase-luteal-light);
+  --color-phase-luteal-text: var(--phase-luteal-text);
   --color-coral: var(--coral);
 
   --color-sidebar-ring: var(--sidebar-ring);
@@ -61,6 +66,11 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+
+  /* Motion-Token — kräftige Custom-Kurven statt der schwachen CSS-Defaults */
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 :root {
@@ -76,15 +86,16 @@
   --popover: #FFFFFF;
   --popover-foreground: #2D2438;
 
-  /* Warm pink — feminine, inviting */
-  --primary: #E8668B;
+  /* Warmes Pink — abgedunkelt für WCAG AA (4.67:1 mit Weiß) */
+  --primary: #CC4068;
   --primary-foreground: #FFFFFF;
 
   --secondary: #FDE8EF;
   --secondary-foreground: #9B3A62;
 
   --muted: #F5F0EE;
-  --muted-foreground: #7B7388;
+  /* 5.23:1 auf background, 4.84:1 auf muted */
+  --muted-foreground: #6E6580;
 
   --accent: #E8E4F3;
   --accent-foreground: #5B4E7A;
@@ -94,20 +105,25 @@
 
   --border: #F0E8E4;
   --input: #F0E8E4;
-  --ring: #E8668B;
+  --ring: #CC4068;
 
   /* Coral accent for CTAs */
   --coral: #F4845F;
 
-  /* Phase colors */
+  /* Phasenfarben: satte Mitteltöne für GRAFIK (Ring, Chart, Marker),
+     dedizierte -text-Töne für TEXT auf den hellen Flächen (alle ≥ 4.5:1) */
   --phase-period: #E8668B;
   --phase-period-light: #FDE8EF;
+  --phase-period-text: #B83A62;
   --phase-fertile: #5BA8C8;
   --phase-fertile-light: #D6EDF7;
+  --phase-fertile-text: #1E6A86;
   --phase-ovulation: #F0A870;
   --phase-ovulation-light: #FBE8D8;
+  --phase-ovulation-text: #9A5718;
   --phase-luteal: #9B8EC4;
   --phase-luteal-light: #E8E4F3;
+  --phase-luteal-text: #5F4F96;
 
   /* Chart */
   --chart-1: #E8668B;
@@ -118,12 +134,12 @@
 
   --sidebar: #FFF8F9;
   --sidebar-foreground: #2D2438;
-  --sidebar-primary: #E8668B;
+  --sidebar-primary: #CC4068;
   --sidebar-primary-foreground: #FFFFFF;
   --sidebar-accent: #FDE8EF;
   --sidebar-accent-foreground: #9B3A62;
   --sidebar-border: #F0E8E4;
-  --sidebar-ring: #E8668B;
+  --sidebar-ring: #CC4068;
 }
 
 .dark {
@@ -143,7 +159,7 @@
   --secondary-foreground: #F0B8CC;
 
   --muted: #2A2335;
-  --muted-foreground: #9B93A8;
+  --muted-foreground: #A89FB5;
 
   --accent: #2E2639;
   --accent-foreground: #C4B5FD;
@@ -157,14 +173,20 @@
 
   --coral: #F4A080;
 
+  /* Im Dark Mode sind die hellen Mitteltöne auf den dunklen Flächen
+     bereits kontraststark — -text zeigt auf dieselben Töne. */
   --phase-period: #F08DA8;
   --phase-period-light: #3D2030;
+  --phase-period-text: #F08DA8;
   --phase-fertile: #6DBAD8;
   --phase-fertile-light: #1E3340;
+  --phase-fertile-text: #6DBAD8;
   --phase-ovulation: #F0B88C;
   --phase-ovulation-light: #3D2E20;
+  --phase-ovulation-text: #F0B88C;
   --phase-luteal: #B0A4D4;
   --phase-luteal-light: #2E2639;
+  --phase-luteal-text: #B0A4D4;
 
   --chart-1: #F08DA8;
   --chart-2: #6DBAD8;
@@ -188,11 +210,22 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Raleway', system-ui, sans-serif;
+    font-family: var(--font-raleway), system-ui, sans-serif;
     -webkit-tap-highlight-color: transparent;
   }
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Lora', Georgia, serif;
+    font-family: var(--font-lora), Georgia, serif;
+  }
+}
+
+@layer utilities {
+  /* Press-Feedback für alles Drückbare: sofortige Rückmeldung,
+     dezent (0.97), schnell (160ms), kräftiges ease-out. */
+  .pressable {
+    transition: transform 160ms var(--ease-out-strong);
+  }
+  .pressable:active {
+    transform: scale(0.97);
   }
 }
 
@@ -236,14 +269,28 @@
 
 /* Pink-tinted card shadow */
 .shadow-soft {
-  box-shadow: 0 4px 20px rgba(232, 102, 139, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4px 20px rgba(204, 64, 104, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .shadow-soft-lg {
-  box-shadow: 0 8px 32px rgba(232, 102, 139, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 8px 32px rgba(204, 64, 104, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
-/* Reduced motion support */
+/* CycleRing: Bogen zeichnet sich beim Einstieg von 0 zum Zielwert.
+   @starting-style liefert den Startzustand (voller Offset = leerer Ring),
+   die Transition übernimmt — ohne JS-State. */
+.cycle-ring-progress {
+  transition: stroke-dashoffset 900ms var(--ease-out-strong), stroke 300ms ease;
+}
+
+@starting-style {
+  .cycle-ring-progress {
+    stroke-dashoffset: var(--ring-circumference);
+  }
+}
+
+/* Reduced motion: weniger und sanfter, nicht null — Opacity-Übergänge
+   bleiben, Bewegung entfällt. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -252,7 +299,11 @@
     scroll-behavior: auto !important;
   }
   .glow-ovulation,
-  .pulse-prediction {
+  .pulse-prediction,
+  .skeleton {
     animation: none !important;
+  }
+  .pressable:active {
+    transform: none;
   }
 }

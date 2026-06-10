@@ -1,26 +1,23 @@
 'use client';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
 
+// Seitenwechsel passieren oft — die Transition ist subtil und schnell
+// (Opacity + minimales Y, ease-out, < 250ms). Reduced Motion übernimmt
+// MotionConfig reducedMotion="user" im Layout (neutralisiert die Bewegung,
+// behält den Fade) — ein bedingter Early-Return würde dagegen Server- und
+// Client-Markup auseinanderlaufen lassen (Hydration-Mismatch).
 export default function PageTransition({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const [reducedMotion, setReducedMotion] = useState(false);
-
-    useEffect(() => {
-        setReducedMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-    }, []);
-
-    if (reducedMotion) return <>{children}</>;
 
     return (
-        <motion.div
+        <m.div
             key={pathname}
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
         >
             {children}
-        </motion.div>
+        </m.div>
     );
 }

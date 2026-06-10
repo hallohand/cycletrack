@@ -1,6 +1,6 @@
 # CycleTrack 🍓🐰
 
-**Version:** 0.8.0 (Beta)
+**Version:** 0.9.0 (Beta)
 
 CycleTrack ist ein privater, lokaler Zyklus-Tracker, der deine Daten ernst nimmt. Als Progressive Web App (PWA) läuft er direkt auf deinem Gerät und speichert alle sensiblen Gesundheitsdaten ausschließlich lokal (LocalStorage & IndexedDB). Es gibt keinen Cloud-Zwang und kein Tracking durch Dritte.
 
@@ -20,16 +20,15 @@ CycleTrack ist ein privater, lokaler Zyklus-Tracker, der deine Daten ernst nimmt
   - Symptome & Stimmung
   - Geschlechtsverkehr
 - **Sicherheit:**
-  - Lokale Verschlüsselung (in Planung)
-  - **App Lock:** Optionaler Schutz durch PIN/Biometrie (FaceID/TouchID) beim App-Start.
+  - **App-Sperre:** Optionaler Schutz durch Biometrie (FaceID/TouchID) beim App-Start, mit Re-Lock nach Hintergrund-Aufenthalt.
 - **Backup:**
-  - Lokale Auto-Backups (Rotation).
-  - Verschlüsselter Cloud-Sync via GitHub Gist (optional).
+  - Lokale Auto-Backups (2 Generationen, zeitgesteuerte Rotation).
+  - Cloud-Sync via GitHub Gist (optional) — mit Passphrase Ende-zu-Ende verschlüsselt (AES-GCM, PBKDF2).
   - PDF-Export für Arztbesuche.
 
 ## Technologie-Stack
 
-- **Framework:** Next.js 15 (App Router)
+- **Framework:** Next.js 16 (App Router, statischer Export)
 - **Styling:** Tailwind CSS + Shadcn UI
 - **State Management:** React Context + Hooks
 - **Persistence:** LocalStorage + IndexedDB
@@ -55,9 +54,10 @@ CycleTrack ist ein privater, lokaler Zyklus-Tracker, der deine Daten ernst nimmt
 
 4. Öffne [http://localhost:3000](http://localhost:3000) im Browser.
 
-## Security Audit (v0.8.0)
+## Audits
 
-Ein Sicherheits-Audit wurde am 13.02.2026 durchgeführt.
+- Sicherheits-Audit am 13.02.2026.
+- Komplettes Code-Audit (Logik, Sicherheit, React, Performance, Datenintegrität, PWA, A11y) am 10.06.2026 — 66 bestätigte Funde behoben, siehe `docs/audit/`.
 
 - **Status:** Keine kritischen Vulnerabilities in Dependencies.
 - **Datenhaltung:** Daten werden unverschlüsselt im LocalStorage des Browsers gespeichert.
