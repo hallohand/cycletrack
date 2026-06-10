@@ -14,13 +14,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { useState, useEffect } from "react"
+import { useState, useId, useRef } from "react"
 import { useCycleData } from "@/hooks/useCycleData"
 import { toast } from "sonner"
 import { CycleEntry, MoodType } from "@/lib/types"
 import { toLocalISO } from "@/lib/utils"
 import { Trash2, Flame, Zap, Heart, ShieldCheck, Droplets, ChevronDown, Minus, Plus } from "lucide-react"
-import { motion } from "framer-motion"
+import { m, useReducedMotion } from "framer-motion"
 
 // --- Maps for summaries ---
 const periodMap: Record<string, string> = { light: 'Leicht', medium: 'Mittel', heavy: 'Stark', spotting: 'Schmier' };
@@ -33,10 +33,23 @@ const CollapsibleSection = ({ title, summary, children, defaultOpen = false }: {
     title: string; summary?: string; children: React.ReactNode; defaultOpen?: boolean;
 }) => {
     const [isOpen, setIsOpen] = useState(defaultOpen);
+    const [isContentInert, setIsContentInert] = useState(!defaultOpen);
+    const contentId = useId();
+    const reduceMotion = useReducedMotion();
+
+    const handleToggle = () => {
+        const next = !isOpen;
+        setIsOpen(next);
+        if (next) setIsContentInert(false);
+    };
+
     return (
         <div className="border border-border/50 rounded-2xl overflow-hidden bg-card">
             <button
-                onClick={() => setIsOpen(!isOpen)}
+                type="button"
+                onClick={handleToggle}
+                aria-expanded={isOpen}
+                aria-controls={contentId}
                 className="w-full flex items-center justify-between px-4 py-3 active:bg-muted/50 transition-colors"
             >
                 <span className="font-serif font-semibold text-sm">{title}</span>
@@ -44,19 +57,24 @@ const CollapsibleSection = ({ title, summary, children, defaultOpen = false }: {
                     {!isOpen && summary && (
                         <span className="text-xs text-muted-foreground truncate max-w-[150px]">{summary}</span>
                     )}
-                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
                 </div>
             </button>
-            <motion.div
+            <m.div
+                id={contentId}
                 initial={false}
                 animate={{ height: isOpen ? 'auto' : 0, opacity: isOpen ? 1 : 0 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 300, damping: 30 }}
+                onAnimationComplete={() => {
+                    if (!isOpen) setIsContentInert(true);
+                }}
+                inert={isContentInert || undefined}
                 className="overflow-hidden"
             >
                 <div className="px-4 pb-4 pt-1 space-y-3">
                     {children}
                 </div>
-            </motion.div>
+            </m.div>
         </div>
     );
 };
@@ -67,24 +85,92 @@ interface EntryDrawerProps {
     onDeleted?: () => void;
 }
 
+// Parses the temperature buffer: '' -> null, invalid -> 'invalid', otherwise rounded number.
+const parseTempInput = (raw: string): number | null | 'invalid' => {
+    const normalized = raw.trim().replace(',', '.');
+    if (normalized === '') return null;
+    const parsed = Number.parseFloat(normalized);
+    if (Number.isNaN(parsed)) return 'invalid';
+    return Math.round(parsed * 100) / 100;
+};
+
 export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerProps) {
-    const { data, updateEntry, deleteEntry, isLoaded } = useCycleData();
+    const { data, updateEntry, deleteEntry } = useCycleData();
     const [date, setDate] = useState<string>(prefillDate || toLocalISO());
     const [entry, setEntry] = useState<Partial<CycleEntry>>({});
+    const [tempInput, setTempInput] = useState('');
     const [open, setOpen] = useState(false);
+    const dateInputId = useId();
+    const tempInputId = useId();
+    const notesId = useId();
+    const excludeTempId = useId();
 
-    useEffect(() => {
-        if (prefillDate) setDate(prefillDate);
-    }, [prefillDate]);
+    // Snapshot des beim Laden vorhandenen Eintrags: beim Speichern werden
+    // nur die tatsächlich geänderten Felder geschrieben, damit zwischenzeitliche
+    // Änderungen aus anderen Tabs (storage-Sync) nicht überschrieben werden.
+    const loadedEntryRef = useRef<Partial<CycleEntry>>({});
 
-    useEffect(() => {
-        if (open && isLoaded && date) {
-            setEntry(data.entries[date] || {});
+    // Formular-State für ein Datum laden — aus Event-Handlern statt aus
+    // Effekten, damit kein setState-im-Effekt-Doppelrender entsteht.
+    const loadEntryFor = (targetDate: string) => {
+        const existing = data.entries[targetDate] || {};
+        loadedEntryRef.current = existing;
+        setEntry(existing);
+        setTempInput(existing.temperature != null ? existing.temperature.toFixed(2) : '');
+    };
+
+    const handleOpenChange = (isOpen: boolean) => {
+        setOpen(isOpen);
+        if (isOpen) {
+            // Default-Datum bei jedem Öffnen neu bestimmen
+            // (sonst bleibt "Heute" von gestern hängen)
+            const targetDate = prefillDate || toLocalISO();
+            setDate(targetDate);
+            loadEntryFor(targetDate);
         }
-    }, [open, date, isLoaded, data.entries]);
+    };
+
+    const handleDateChange = (newDate: string) => {
+        setDate(newDate);
+        if (newDate) loadEntryFor(newDate);
+    };
+
+    const commitTemp = (raw: string) => {
+        const parsed = parseTempInput(raw);
+        if (parsed === 'invalid') {
+            // Ungültige Eingabe verwerfen, letzten gültigen Wert wiederherstellen
+            setTempInput(entry.temperature != null ? entry.temperature.toFixed(2) : '');
+            return;
+        }
+        setEntry(prev => ({ ...prev, temperature: parsed }));
+        setTempInput(parsed != null ? parsed.toFixed(2) : '');
+    };
+
+    const stepTemp = (delta: number) => {
+        const parsed = parseTempInput(tempInput);
+        const base = typeof parsed === 'number' ? parsed : entry.temperature ?? 36.5;
+        const next = Math.round((base + delta) * 100) / 100;
+        setEntry(prev => ({ ...prev, temperature: next }));
+        setTempInput(next.toFixed(2));
+    };
 
     const handleSave = () => {
-        updateEntry(date, entry);
+        // Noch nicht committeten Temperatur-Puffer mitnehmen (z. B. Tippen → direkt "Speichern")
+        const parsed = parseTempInput(tempInput);
+        const finalEntry = parsed === 'invalid' ? entry : { ...entry, temperature: parsed };
+        // Nur die seit dem Laden geänderten Felder schreiben — updateEntry
+        // merged in den aktuellen Store-Stand, sodass parallel (anderer Tab)
+        // geänderte, hier unberührte Felder erhalten bleiben.
+        const loaded = loadedEntryRef.current;
+        const diff: Partial<CycleEntry> = { date };
+        const keys = new Set([...Object.keys(finalEntry), ...Object.keys(loaded)]) as Set<keyof CycleEntry>;
+        for (const key of keys) {
+            if (key === 'date') continue;
+            if (JSON.stringify(finalEntry[key] ?? null) !== JSON.stringify(loaded[key] ?? null)) {
+                (diff as Record<string, unknown>)[key] = finalEntry[key] ?? null;
+            }
+        }
+        updateEntry(date, diff);
         toast.success("Eintrag gespeichert");
         setOpen(false);
     };
@@ -155,19 +241,21 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
     ].filter(Boolean).join(' · ') || undefined;
 
     return (
-        <Drawer open={open} onOpenChange={setOpen}>
+        <Drawer open={open} onOpenChange={handleOpenChange}>
             <DrawerTrigger asChild>
                 {children}
             </DrawerTrigger>
             <DrawerContent className="max-h-[85vh]">
-                <div className="mx-auto w-full max-w-sm">
+                <div className="mx-auto w-full max-w-sm flex flex-col min-h-0">
                     <DrawerHeader className="pb-2">
                         <div className="flex items-center justify-between">
                             <DrawerTitle className="text-lg">{hasExistingEntry ? 'Eintrag bearbeiten' : 'Neuer Eintrag'}</DrawerTitle>
                             <Input
                                 type="date"
+                                id={dateInputId}
+                                aria-label="Datum des Eintrags"
                                 value={date}
-                                onChange={(e) => setDate(e.target.value)}
+                                onChange={(e) => handleDateChange(e.target.value)}
                                 className="w-auto text-xs h-8 px-2 rounded-lg"
                             />
                         </div>
@@ -176,49 +264,50 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                         </DrawerDescription>
                     </DrawerHeader>
 
-                    <div className="px-4 pb-4 space-y-3 overflow-y-auto max-h-[70vh]">
+                    <div className="px-4 pb-4 space-y-3 overflow-y-auto flex-1 min-h-0">
 
                         {/* Temperature — always visible */}
                         <div className="bg-card rounded-2xl p-4 border border-border/50 space-y-3">
-                            <Label className="font-serif font-semibold text-sm">Temperatur</Label>
+                            <Label htmlFor={tempInputId} className="font-serif font-semibold text-sm">Temperatur</Label>
                             <div className="flex items-center justify-center gap-4">
                                 <button
+                                    type="button"
+                                    aria-label="Temperatur um 0,05 °C verringern"
                                     className="w-10 h-10 rounded-full bg-muted flex items-center justify-center active:scale-95 transition-transform"
-                                    onClick={() => {
-                                        const current = entry.temperature || 36.5;
-                                        setEntry(prev => ({ ...prev, temperature: Math.round((current - 0.05) * 100) / 100 }));
-                                    }}
+                                    onClick={() => stepTemp(-0.05)}
                                 >
-                                    <Minus className="w-4 h-4" />
+                                    <Minus className="w-4 h-4" aria-hidden="true" />
                                 </button>
                                 <div className="text-center">
                                     <input
                                         type="text"
+                                        id={tempInputId}
                                         inputMode="decimal"
-                                        value={entry.temperature || ''}
-                                        onChange={(e) => setEntry(prev => ({ ...prev, temperature: e.target.value ? parseFloat(e.target.value) : null }))}
-                                        placeholder="36.50"
-                                        className={`text-3xl font-bold text-center w-28 bg-transparent outline-none font-sans tabular-nums ${entry.excludeTemp ? 'opacity-40 line-through' : ''}`}
+                                        autoComplete="off"
+                                        value={tempInput}
+                                        onChange={(e) => setTempInput(e.target.value)}
+                                        onBlur={(e) => commitTemp(e.target.value)}
+                                        placeholder="36,50"
+                                        className={`text-3xl font-bold text-center w-28 bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg font-sans tabular-nums ${entry.excludeTemp ? 'opacity-40 line-through' : ''}`}
                                     />
                                     <span className="text-xs text-muted-foreground">°C</span>
                                 </div>
                                 <button
+                                    type="button"
+                                    aria-label="Temperatur um 0,05 °C erhöhen"
                                     className="w-10 h-10 rounded-full bg-muted flex items-center justify-center active:scale-95 transition-transform"
-                                    onClick={() => {
-                                        const current = entry.temperature || 36.5;
-                                        setEntry(prev => ({ ...prev, temperature: Math.round((current + 0.05) * 100) / 100 }));
-                                    }}
+                                    onClick={() => stepTemp(0.05)}
                                 >
-                                    <Plus className="w-4 h-4" />
+                                    <Plus className="w-4 h-4" aria-hidden="true" />
                                 </button>
                             </div>
                             <div className="flex items-center justify-center gap-2">
                                 <Switch
-                                    id="exclude-temp"
+                                    id={excludeTempId}
                                     checked={entry.excludeTemp || false}
                                     onCheckedChange={(checked) => setEntry(prev => ({ ...prev, excludeTemp: checked }))}
                                 />
-                                <Label htmlFor="exclude-temp" className="text-xs text-muted-foreground">Störfaktor</Label>
+                                <Label htmlFor={excludeTempId} className="text-xs text-muted-foreground">Störfaktor</Label>
                             </div>
                         </div>
 
@@ -233,6 +322,8 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                                     { val: 'spotting', label: 'Schmier' },
                                 ].map(t => (
                                     <button key={t.val}
+                                        type="button"
+                                        aria-pressed={entry.period === t.val}
                                         onClick={() => handleOptionSelect('period', t.val)}
                                         className={`flex flex-col items-center gap-1 transition-all active:scale-95 ${entry.period === t.val ? 'scale-110' : ''}`}
                                     >
@@ -253,6 +344,8 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                                     { val: 'extreme', label: 'Extrem', icon: <Flame className="w-5 h-5 text-destructive" /> },
                                 ].map(p => (
                                     <button key={p.val}
+                                        type="button"
+                                        aria-pressed={entry.pain === p.val}
                                         onClick={() => handleOptionSelect('pain', p.val)}
                                         className={`flex flex-col items-center gap-1 transition-all active:scale-95 ${entry.pain === p.val ? 'scale-110' : ''}`}
                                     >
@@ -275,6 +368,8 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                                     { val: 'negative', label: 'Negativ' },
                                 ].map(opt => (
                                     <button key={opt.val}
+                                        type="button"
+                                        aria-pressed={entry.lhTest === opt.val}
                                         onClick={() => handleOptionSelect('lhTest', opt.val)}
                                         className={`px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 border ${entry.lhTest === opt.val ? 'bg-primary border-primary text-primary-foreground' : 'bg-card border-border text-muted-foreground'}`}
                                     >
@@ -293,6 +388,8 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                                     { val: 'eggwhite', label: 'Spinnbar' },
                                 ].map(opt => (
                                     <button key={opt.val}
+                                        type="button"
+                                        aria-pressed={entry.cervix === opt.val}
                                         onClick={() => handleOptionSelect('cervix', opt.val)}
                                         className={`px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 border ${entry.cervix === opt.val ? 'bg-primary border-primary text-primary-foreground' : 'bg-card border-border text-muted-foreground'}`}
                                     >
@@ -308,6 +405,8 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                             <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
                                 {moods.map(m => (
                                     <button key={m.key}
+                                        type="button"
+                                        aria-pressed={(entry.mood || []).includes(m.key as MoodType)}
                                         onClick={() => toggleMood(m.key as MoodType)}
                                         className={`flex-shrink-0 flex flex-col items-center gap-1 transition-all active:scale-95 ${(entry.mood || []).includes(m.key as MoodType) ? 'scale-110' : ''}`}
                                     >
@@ -323,6 +422,8 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                             <div className="flex flex-wrap gap-1.5">
                                 {symptoms.map(s => (
                                     <button key={s}
+                                        type="button"
+                                        aria-pressed={(entry.symptoms || []).includes(s)}
                                         onClick={() => toggleSymptom(s)}
                                         className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95 border ${(entry.symptoms || []).includes(s) ? 'bg-primary border-primary text-primary-foreground' : 'bg-card border-border text-muted-foreground'}`}
                                     >
@@ -337,12 +438,16 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                             <Label className="text-xs text-muted-foreground">Geschlechtsverkehr</Label>
                             <div className="flex gap-2 justify-center">
                                 <button
+                                    type="button"
+                                    aria-pressed={entry.sex === 'unprotected'}
                                     onClick={() => handleOptionSelect('sex', 'unprotected')}
                                     className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 border ${entry.sex === 'unprotected' ? 'bg-primary border-primary text-primary-foreground' : 'bg-card border-border text-muted-foreground'}`}
                                 >
                                     <Heart className="w-4 h-4" /> Ungeschützt
                                 </button>
                                 <button
+                                    type="button"
+                                    aria-pressed={entry.sex === 'protected'}
                                     onClick={() => handleOptionSelect('sex', 'protected')}
                                     className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 border ${entry.sex === 'protected' ? 'bg-primary border-primary text-primary-foreground' : 'bg-card border-border text-muted-foreground'}`}
                                 >
@@ -350,11 +455,12 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                                 </button>
                             </div>
 
-                            <Label className="text-xs text-muted-foreground pt-2">Notizen</Label>
+                            <Label htmlFor={notesId} className="text-xs text-muted-foreground pt-2">Notizen</Label>
                             <textarea
+                                id={notesId}
                                 value={entry.notes || ''}
                                 onChange={(e) => setEntry(prev => ({ ...prev, notes: e.target.value }))}
-                                className="w-full p-3 text-sm border border-border/50 rounded-xl resize-none focus:ring-2 focus:ring-primary/20 outline-none bg-transparent"
+                                className="w-full p-3 text-sm border border-border/50 rounded-xl resize-none outline-none focus-visible:ring-2 focus-visible:ring-ring bg-transparent"
                                 rows={3}
                                 placeholder="Optionale Notizen..."
                             />
@@ -365,7 +471,7 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                     <DrawerFooter className="pt-2">
                         <Button
                             onClick={handleSave}
-                            className="w-full bg-gradient-to-r from-primary to-coral text-white rounded-xl h-12 text-base font-semibold shadow-soft active:scale-[0.98] transition-transform"
+                            className="w-full bg-primary text-primary-foreground rounded-xl h-12 text-base font-semibold shadow-soft active:scale-[0.98] transition-transform"
                         >
                             Speichern
                         </Button>
@@ -374,8 +480,8 @@ export function EntryDrawer({ children, prefillDate, onDeleted }: EntryDrawerPro
                                 <Button variant="outline" className="flex-1 rounded-xl">Abbrechen</Button>
                             </DrawerClose>
                             {hasExistingEntry && (
-                                <Button variant="destructive" size="icon" className="rounded-xl" onClick={handleDelete}>
-                                    <Trash2 className="w-4 h-4" />
+                                <Button variant="destructive" size="icon" className="rounded-xl" aria-label="Eintrag löschen" onClick={handleDelete}>
+                                    <Trash2 className="w-4 h-4" aria-hidden="true" />
                                 </Button>
                             )}
                         </div>

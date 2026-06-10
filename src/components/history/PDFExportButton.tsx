@@ -34,7 +34,7 @@ export function PDFExportButton({ cycles }: PDFExportButtonProps) {
 
             // Prepare Table Data
             const tableData = cycles.map(c => {
-                const ovuDay = c.days.find((d: any) => d.isOvulation);
+                const ovuDay = c.days.find((d) => d.isOvulation);
                 const isoStart = new Date(c.startDate).toLocaleDateString('de-DE');
                 const isoEnd = c.endDate ? new Date(c.endDate).toLocaleDateString('de-DE') : 'Aktuell';
 
@@ -47,7 +47,7 @@ export function PDFExportButton({ cycles }: PDFExportButtonProps) {
                     // Calculate Luteal Length (Days after ovulation until end)
                     // If cycle is finished
                     if (c.endDate) {
-                        const ovuIndex = c.days.findIndex((d: any) => d.isOvulation);
+                        const ovuIndex = c.days.findIndex((d) => d.isOvulation);
                         if (ovuIndex !== -1) {
                             // Safer to use days.length
                             const len = c.days.length;
@@ -80,7 +80,7 @@ export function PDFExportButton({ cycles }: PDFExportButtonProps) {
             });
 
             // Footer
-            const pageCount = (doc as any).internal.getNumberOfPages(); // Typed as any to bypass TS check on internal
+            const pageCount = doc.getNumberOfPages();
             for (let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
                 doc.setFontSize(8);

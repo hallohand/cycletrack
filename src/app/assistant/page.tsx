@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const CHAT_STORAGE_KEY = 'cycletrack_ai_chat';
+const PRIVACY_KEY = 'cycletrack_ai_privacy_accepted';
 const SLIDING_WINDOW = 6; // Send only last N messages to API
 
 const QUICK_ACTIONS = [
@@ -22,9 +23,15 @@ const QUICK_ACTIONS = [
 ];
 
 interface DisplayMessage {
+    id: string;
     role: 'user' | 'assistant';
     text: string;
     isStreaming?: boolean;
+}
+
+/** Eindeutige Message-ID (für gezielte Streaming-Updates statt Index-Zugriff) */
+function makeId(): string {
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
 /** Lightweight markdown renderer for chat messages */
@@ -85,44 +92,61 @@ function formatInline(text: string): React.ReactNode {
 
 export default function AssistantPage() {
     const { data, isLoaded, engine } = useCycleData();
-    const [messages, setMessages] = useState<DisplayMessage[]>(() => {
-        if (typeof window === 'undefined') return [];
-        try {
-            const stored = localStorage.getItem(CHAT_STORAGE_KEY);
-            return stored ? JSON.parse(stored) : [];
-        } catch { return []; }
-    });
+    const [hydrated, setHydrated] = useState(false);
+    const [apiKey, setApiKeyState] = useState('');
+    const [messages, setMessages] = useState<DisplayMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [showPrivacyNotice, setShowPrivacyNotice] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    // Session-Token: macht laufende Streams nach "Chat löschen" wirkungslos
+    const streamSessionRef = useRef(0);
     const [showMemory, setShowMemory] = useState(false);
     const [memoryText, setMemoryText] = useState('');
-
-    const apiKey = useMemo(() => getApiKey(), []);
 
     const systemPrompt = useMemo(() => {
         if (!data || !engine) return '';
         return buildSystemPrompt(data, engine);
     }, [data, engine]);
 
-    // Check privacy notice
+    // Hydration: localStorage (API-Key, Chat-Verlauf, Privacy-Flag) erst nach Mount lesen,
+    // damit Server-HTML und erster Client-Render übereinstimmen (statischer Export).
     useEffect(() => {
-        if (typeof window === 'undefined') return;
-        const accepted = localStorage.getItem('cycletrack_ai_privacy_accepted');
-        if (!accepted && apiKey) {
+        const key = getApiKey();
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- einmalige Hydration aus localStorage, kein kaskadierender Effekt
+        setApiKeyState(key);
+        try {
+            const stored = localStorage.getItem(CHAT_STORAGE_KEY);
+            if (stored) {
+                const parsed = JSON.parse(stored) as { role: 'user' | 'assistant'; text: string }[];
+                if (Array.isArray(parsed)) {
+                    setMessages(parsed
+                        .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string')
+                        .map(m => ({ id: makeId(), role: m.role, text: m.text })));
+                }
+            }
+        } catch { /* ignore parse errors */ }
+        if (key && localStorage.getItem(PRIVACY_KEY) !== 'true') {
             setShowPrivacyNotice(true);
         }
-    }, [apiKey]);
+        setHydrated(true);
+    }, []);
 
-    // Save messages to localStorage whenever they change (skip streaming)
+    // Chat persistieren: fertige Nachrichten sofort (damit die Nutzerfrage
+    // einen App-Kill während des Streamings überlebt), streamende Nachrichten
+    // werden herausgefiltert statt das Speichern komplett zu überspringen —
+    // so wird trotzdem nicht pro Chunk der volle Streamtext geschrieben.
     useEffect(() => {
+        if (!hydrated) return;
         const completed = messages.filter(m => !m.isStreaming);
         if (completed.length > 0) {
-            localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(completed));
+            localStorage.setItem(
+                CHAT_STORAGE_KEY,
+                JSON.stringify(completed.map(({ role, text }) => ({ role, text })))
+            );
         }
-    }, [messages]);
+    }, [messages, hydrated]);
 
     // Auto-scroll to bottom
     useEffect(() => {
@@ -134,8 +158,10 @@ export default function AssistantPage() {
     const sendMessage = useCallback(async (text: string) => {
         if (!text.trim() || !apiKey || isLoading) return;
 
-        const userMsg: DisplayMessage = { role: 'user', text: text.trim() };
-        const assistantMsg: DisplayMessage = { role: 'assistant', text: '', isStreaming: true };
+        const session = streamSessionRef.current;
+        const assistantId = makeId();
+        const userMsg: DisplayMessage = { id: makeId(), role: 'user', text: text.trim() };
+        const assistantMsg: DisplayMessage = { id: assistantId, role: 'assistant', text: '', isStreaming: true };
 
         setMessages(prev => [...prev, userMsg, assistantMsg]);
         setInput('');
@@ -158,19 +184,17 @@ export default function AssistantPage() {
             systemPrompt,
             chatHistory,
             (chunk) => {
+                if (streamSessionRef.current !== session) return; // Chat wurde gelöscht
                 fullText += chunk;
-                setMessages(prev => {
-                    const updated = [...prev];
-                    updated[updated.length - 1] = { role: 'assistant', text: fullText, isStreaming: true };
-                    return updated;
-                });
+                setMessages(prev => prev.map(m =>
+                    m.id === assistantId ? { ...m, text: fullText, isStreaming: true } : m
+                ));
             },
             () => {
-                setMessages(prev => {
-                    const updated = [...prev];
-                    updated[updated.length - 1] = { role: 'assistant', text: fullText, isStreaming: false };
-                    return updated;
-                });
+                if (streamSessionRef.current !== session) return; // Chat wurde gelöscht
+                setMessages(prev => prev.map(m =>
+                    m.id === assistantId ? { ...m, text: fullText, isStreaming: false } : m
+                ));
                 setIsLoading(false);
 
                 // Extract facts for memory (async, non-blocking)
@@ -184,11 +208,10 @@ export default function AssistantPage() {
                 updateMemoryAfterChat(recentForMemory).catch(() => { });
             },
             (error) => {
-                setMessages(prev => {
-                    const updated = [...prev];
-                    updated[updated.length - 1] = { role: 'assistant', text: `${error}`, isStreaming: false };
-                    return updated;
-                });
+                if (streamSessionRef.current !== session) return; // Chat wurde gelöscht
+                setMessages(prev => prev.map(m =>
+                    m.id === assistantId ? { ...m, text: `${error}`, isStreaming: false } : m
+                ));
                 setIsLoading(false);
             }
         );
@@ -200,11 +223,29 @@ export default function AssistantPage() {
     };
 
     const acceptPrivacy = () => {
-        localStorage.setItem('cycletrack_ai_privacy_accepted', 'true');
+        localStorage.setItem(PRIVACY_KEY, 'true');
         setShowPrivacyNotice(false);
     };
 
-    if (!isLoaded) return (
+    const clearChat = () => {
+        streamSessionRef.current += 1; // laufenden Stream wirkungslos machen
+        setMessages([]);
+        setIsLoading(false);
+        localStorage.removeItem(CHAT_STORAGE_KEY);
+    };
+
+    const openMemory = () => {
+        setMemoryText(getMemory() || '(Noch keine Einträge)');
+        setShowMemory(true);
+    };
+
+    const saveMemory = () => {
+        const text = memoryText === '(Noch keine Einträge)' ? '' : memoryText;
+        setMemory(text);
+        setShowMemory(false);
+    };
+
+    if (!isLoaded || !hydrated) return (
         <div className="flex flex-col gap-4 px-4 pt-6 animate-in fade-in duration-300">
             <Skeleton className="w-32 h-6 rounded-xl" />
             <Skeleton className="w-full h-[200px] rounded-2xl" />
@@ -247,14 +288,15 @@ export default function AssistantPage() {
                 <AlertTriangle className="w-10 h-10 text-[var(--phase-ovulation)] mb-4" />
                 <h2 className="text-lg font-bold mb-2">Datenschutzhinweis</h2>
                 <p className="text-muted-foreground text-sm mb-4 max-w-xs">
-                    Der Assistent sendet deine Zyklusdaten (Temperaturen, Phasen, Prognosen)
+                    Der Assistent sendet deine Zyklusdaten (Temperaturen, Phasen, Prognosen),
+                    deine Patientenakte (das KI-Gedächtnis) sowie deinen Chat-Verlauf
                     an die Google Gemini API zur Analyse. Deine Daten werden laut Google nicht
                     gespeichert und nicht zum Training verwendet.
                 </p>
                 <div className="flex gap-3">
                     <button
                         onClick={acceptPrivacy}
-                        className="px-4 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-colors"
+                        className="px-4 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                         Verstanden & Fortfahren
                     </button>
@@ -269,22 +311,6 @@ export default function AssistantPage() {
         );
     }
 
-    const clearChat = () => {
-        setMessages([]);
-        localStorage.removeItem(CHAT_STORAGE_KEY);
-    };
-
-    const openMemory = () => {
-        setMemoryText(getMemory() || '(Noch keine Einträge)');
-        setShowMemory(true);
-    };
-
-    const saveMemory = () => {
-        const text = memoryText === '(Noch keine Einträge)' ? '' : memoryText;
-        setMemory(text);
-        setShowMemory(false);
-    };
-
     return (
         <div className="flex flex-col h-[calc(100dvh-200px)] overflow-hidden">
             {/* Header */}
@@ -295,12 +321,22 @@ export default function AssistantPage() {
                         <h2 className="text-base font-bold font-serif">Clara</h2>
                     </div>
                     <div className="flex items-center gap-1">
-                        <button onClick={openMemory} className="text-muted-foreground hover:text-foreground p-1" title="Gedächtnis" aria-label="Gedächtnis anzeigen">
-                            <BookOpen className="w-4 h-4" />
+                        <button
+                            onClick={openMemory}
+                            className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            title="Gedächtnis"
+                            aria-label="Gedächtnis anzeigen"
+                        >
+                            <BookOpen className="w-5 h-5" />
                         </button>
                         {messages.length > 0 && (
-                            <button onClick={clearChat} className="text-muted-foreground hover:text-foreground p-1" title="Chat löschen" aria-label="Chat löschen">
-                                <Trash2 className="w-4 h-4" />
+                            <button
+                                onClick={clearChat}
+                                className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                title="Chat löschen"
+                                aria-label="Chat löschen"
+                            >
+                                <Trash2 className="w-5 h-5" />
                             </button>
                         )}
                     </div>
@@ -313,7 +349,12 @@ export default function AssistantPage() {
             </div>
 
             {/* Messages */}
-            <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3 scrollbar-hide">
+            <div
+                ref={scrollRef}
+                role="log"
+                aria-live="polite"
+                className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3 scrollbar-hide"
+            >
                 {messages.length === 0 && (
                     <div className="text-center py-12">
                         <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4">
@@ -324,9 +365,9 @@ export default function AssistantPage() {
                     </div>
                 )}
 
-                {messages.map((msg, i) => (
+                {messages.map((msg) => (
                     <div
-                        key={i}
+                        key={msg.id}
                         className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                         <div
@@ -337,7 +378,11 @@ export default function AssistantPage() {
                         >
                             {msg.role === 'assistant' ? renderMarkdown(msg.text) : msg.text}
                             {msg.isStreaming && (
-                                <span className="inline-block w-1.5 h-4 bg-primary ml-0.5 animate-pulse rounded-full" />
+                                <span
+                                    role="status"
+                                    aria-label="Clara antwortet"
+                                    className="inline-block w-1.5 h-4 bg-primary ml-0.5 animate-pulse rounded-full"
+                                />
                             )}
                         </div>
                     </div>
@@ -352,7 +397,7 @@ export default function AssistantPage() {
                             key={i}
                             onClick={() => sendMessage(action.prompt)}
                             disabled={isLoading}
-                            className="flex-shrink-0 w-36 bg-card border border-border/50 rounded-2xl p-3 text-left shadow-soft active:scale-[0.97] transition-transform disabled:opacity-50"
+                            className="flex-shrink-0 w-36 bg-card border border-border/50 rounded-2xl p-3 text-left shadow-soft active:scale-[0.97] transition-transform disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                             <span className="text-xs font-medium text-foreground leading-tight line-clamp-2">{action.label}</span>
                         </button>
@@ -362,7 +407,7 @@ export default function AssistantPage() {
 
             {/* Input */}
             <form onSubmit={handleSubmit} className="px-4 py-2 shrink-0 border-t border-border/30">
-                <div className="flex items-center gap-2 bg-card border border-border/50 rounded-2xl px-4 py-2 shadow-soft">
+                <div className="flex items-center gap-2 bg-card border border-border/50 rounded-2xl px-4 py-1.5 shadow-soft">
                     <input
                         ref={inputRef}
                         type="text"
@@ -370,12 +415,13 @@ export default function AssistantPage() {
                         onChange={(e) => setInput(e.target.value)}
                         placeholder="Frage stellen..."
                         disabled={isLoading}
-                        className="flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
+                        className="flex-1 bg-transparent text-base outline-none rounded-md focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground"
                     />
                     <button
                         type="submit"
                         disabled={!input.trim() || isLoading}
-                        className="w-8 h-8 bg-primary text-primary-foreground rounded-xl flex items-center justify-center shrink-0 disabled:opacity-30 hover:bg-primary/90 transition-colors"
+                        aria-label="Nachricht senden"
+                        className="w-11 h-11 bg-primary text-primary-foreground rounded-xl flex items-center justify-center shrink-0 disabled:opacity-30 hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                         <Send className="w-4 h-4" />
                     </button>
@@ -394,7 +440,8 @@ export default function AssistantPage() {
                     <textarea
                         value={memoryText}
                         onChange={(e) => setMemoryText(e.target.value)}
-                        className="flex-1 min-h-[200px] w-full text-xs font-mono bg-muted rounded-xl p-3 outline-none resize-none mt-4"
+                        aria-label="Patientenakte (KI-Gedächtnis) bearbeiten"
+                        className="flex-1 min-h-[200px] w-full text-xs font-mono bg-muted rounded-xl p-3 outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none mt-4"
                     />
                     <SheetFooter className="mt-4 flex gap-2">
                         <Button

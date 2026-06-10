@@ -1,14 +1,30 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { authenticatePasskey, isAppLockEnabled } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { ShieldCheck, Lock } from 'lucide-react';
+
+// Re-lock only after the app was in the background for longer than this (ms).
+// Short tab switches (<60s) must not cause lock flicker.
+const RELOCK_AFTER_MS = 60_000;
 
 export function AppLock({ children }: { children: React.ReactNode }) {
     const [isLocked, setIsLocked] = useState(true); // Default to locked to prevent flash
     const [hasLockConfigured, setHasLockConfigured] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const hiddenSinceRef = useRef<number | null>(null);
+
+    const triggerUnlock = useCallback(async () => {
+        try {
+            const success = await authenticatePasskey();
+            if (success) {
+                setIsLocked(false);
+            }
+        } catch {
+            // User cancelled or failed
+        }
+    }, []);
 
     useEffect(() => {
         const checkLock = async () => {
@@ -29,18 +45,30 @@ export function AppLock({ children }: { children: React.ReactNode }) {
         };
 
         checkLock();
-    }, []);
+    }, [triggerUnlock]);
 
-    const triggerUnlock = async () => {
-        try {
-            const success = await authenticatePasskey();
-            if (success) {
-                setIsLocked(false);
+    // Re-lock when returning to the app after >60s in the background.
+    useEffect(() => {
+        if (!hasLockConfigured) return;
+
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                // Remember when the app went to the background (keep earliest timestamp).
+                if (hiddenSinceRef.current === null) {
+                    hiddenSinceRef.current = Date.now();
+                }
+            } else {
+                const hiddenSince = hiddenSinceRef.current;
+                hiddenSinceRef.current = null;
+                if (hiddenSince !== null && Date.now() - hiddenSince > RELOCK_AFTER_MS) {
+                    setIsLocked(true);
+                }
             }
-        } catch (e) {
-            // User cancelled or failed
-        }
-    };
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [hasLockConfigured]);
 
     if (isLoading) return null; // Or a splash screen
 

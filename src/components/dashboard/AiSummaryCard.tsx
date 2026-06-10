@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useCycleData } from '@/hooks/useCycleData';
 import { generateSummary, getApiKey } from '@/lib/gemini-client';
 import { buildSystemPrompt, buildSummaryPrompt, hashEntries } from '@/lib/llm-context';
@@ -8,6 +8,7 @@ import Link from 'next/link';
 
 const CACHE_KEY = 'cycletrack_ai_summary_v4';
 const HASH_KEY = 'cycletrack_ai_summary_hash_v4';
+const PRIVACY_KEY = 'cycletrack_ai_privacy_accepted';
 
 interface CachedSummary {
     text: string;
@@ -16,20 +17,25 @@ interface CachedSummary {
 
 export function AiSummaryCard() {
     const { data, isLoaded, engine } = useCycleData();
+    const [hydrated, setHydrated] = useState(false);
+    const [apiKey, setApiKeyState] = useState('');
+    const [privacyAccepted, setPrivacyAccepted] = useState(false);
     const [summary, setSummary] = useState<string>('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [lastUpdated, setLastUpdated] = useState<string>('');
-
-    const apiKey = useMemo(() => getApiKey(), []);
+    // Stale-Guard: nur die Antwort der letzten Anfrage darf Anzeige + Cache schreiben
+    const requestTokenRef = useRef(0);
 
     const currentHash = useMemo(() => {
         if (!data?.entries) return '';
         return hashEntries(data.entries);
     }, [data?.entries]);
 
-    // Load cached summary on mount
+    // Hydration: localStorage (API-Key, Privacy-Flag, Cache) erst nach Mount lesen,
+    // damit Server-HTML und erster Client-Render übereinstimmen (statischer Export).
     useEffect(() => {
-        if (typeof window === 'undefined') return;
+        setApiKeyState(getApiKey());
+        setPrivacyAccepted(localStorage.getItem(PRIVACY_KEY) === 'true');
         try {
             const cached = localStorage.getItem(CACHE_KEY);
             if (cached) {
@@ -40,14 +46,17 @@ export function AiSummaryCard() {
         } catch {
             // ignore parse errors
         }
+        setHydrated(true);
     }, []);
 
-    // Generate summary when data changes
+    // Generate summary when data changes — nur mit akzeptiertem Datenschutzhinweis
     useEffect(() => {
-        if (!apiKey || !data || !engine || !currentHash || !isLoaded) return;
+        if (!hydrated || !apiKey || !privacyAccepted || !data || !engine || !currentHash || !isLoaded) return;
 
         const storedHash = localStorage.getItem(HASH_KEY);
         if (storedHash === currentHash) return; // No changes
+
+        const token = ++requestTokenRef.current;
 
         const generate = async () => {
             setIsGenerating(true);
@@ -56,6 +65,8 @@ export function AiSummaryCard() {
                 const userPrompt = buildSummaryPrompt();
 
                 const result = await generateSummary(apiKey, systemPrompt, userPrompt);
+
+                if (token !== requestTokenRef.current) return; // stale response — verwerfen
 
                 if (result.text) {
                     const now = new Date().toLocaleString('de-DE', {
@@ -70,18 +81,49 @@ export function AiSummaryCard() {
                     localStorage.setItem(HASH_KEY, currentHash);
                 }
             } catch (e) {
-                console.warn('AI summary generation failed:', e);
+                if (token === requestTokenRef.current) {
+                    console.warn('AI summary generation failed:', e);
+                }
             } finally {
-                setIsGenerating(false);
+                if (token === requestTokenRef.current) {
+                    setIsGenerating(false);
+                }
             }
         };
 
         generate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [apiKey, currentHash, isLoaded]);
+    }, [hydrated, apiKey, privacyAccepted, currentHash, isLoaded]);
+
+    // Vor Hydration nichts rendern (Server-HTML = erster Client-Render)
+    if (!hydrated || !isLoaded) return null;
 
     // Don't render if no API key
-    if (!apiKey || !isLoaded) return null;
+    if (!apiKey) return null;
+
+    // Privacy-Gate: ohne akzeptierten Datenschutzhinweis keine API-Aufrufe
+    if (!privacyAccepted) {
+        return (
+            <div className="bg-gradient-to-br from-secondary to-[var(--phase-ovulation-light)] rounded-2xl p-4 relative">
+                <div className="flex items-center gap-1.5 mb-2">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    <span className="text-xs font-semibold text-primary">KI-Zusammenfassung</span>
+                </div>
+                <p className="text-sm text-foreground/80 leading-relaxed">
+                    Um die KI-Zusammenfassung zu aktivieren, akzeptiere zuerst den
+                    Datenschutzhinweis im Assistenten.
+                </p>
+                <div className="flex justify-end mt-2">
+                    <Link
+                        href="/assistant"
+                        className="inline-flex items-center gap-0.5 py-2 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                    >
+                        Zum Assistenten <ChevronRight className="w-3 h-3" />
+                    </Link>
+                </div>
+            </div>
+        );
+    }
 
     // Don't render if no summary and not generating
     if (!summary && !isGenerating) return null;
@@ -94,7 +136,7 @@ export function AiSummaryCard() {
             </div>
 
             {isGenerating && !summary ? (
-                <div className="flex items-center gap-2 py-2">
+                <div className="flex items-center gap-2 py-2" role="status">
                     <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                     <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                     <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
@@ -106,7 +148,7 @@ export function AiSummaryCard() {
                         {summary}
                     </p>
                     {isGenerating && (
-                        <p className="text-[10px] text-primary mt-1 animate-pulse">Aktualisiere...</p>
+                        <p className="text-[10px] text-primary mt-1 animate-pulse" role="status">Aktualisiere...</p>
                     )}
                 </>
             )}

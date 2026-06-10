@@ -1,7 +1,7 @@
 'use client';
 import { useCycleData } from '@/hooks/useCycleData';
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { m, useReducedMotion } from 'framer-motion';
 import { PDFExportButton } from '@/components/history/PDFExportButton';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -9,6 +9,7 @@ export default function HistoryPage() {
     const { data, isLoaded, engine, cycles } = useCycleData();
     const [tab, setTab] = useState<'history' | 'forecast'>('history');
     const [expandedCycle, setExpandedCycle] = useState<string | null>(null);
+    const prefersReducedMotion = useReducedMotion();
 
     if (!isLoaded) return (
         <div className="flex flex-col px-4 gap-4 pt-6">
@@ -63,8 +64,10 @@ export default function HistoryPage() {
             {/* Section Title + Tabs */}
             <div className="mb-3 shrink-0">
                 <h3 className="text-base font-semibold mb-2 font-serif">Meine Zyklen</h3>
-                <div className="flex bg-muted rounded-full p-0.5">
+                <div className="flex bg-muted rounded-full p-0.5" role="tablist" aria-label="Zyklusansicht">
                     <button
+                        role="tab"
+                        aria-selected={tab === 'history'}
                         onClick={() => setTab('history')}
                         className={`flex-1 py-1.5 text-sm font-medium rounded-full transition-all ${tab === 'history'
                             ? 'bg-primary text-primary-foreground shadow-sm'
@@ -74,6 +77,8 @@ export default function HistoryPage() {
                         Verlauf
                     </button>
                     <button
+                        role="tab"
+                        aria-selected={tab === 'forecast'}
                         onClick={() => setTab('forecast')}
                         className={`flex-1 py-1.5 text-sm font-medium rounded-full transition-all ${tab === 'forecast'
                             ? 'bg-primary text-primary-foreground shadow-sm'
@@ -171,11 +176,11 @@ export default function HistoryPage() {
 
                                     {/* Expanded details */}
                                     {expandedCycle === cycle.id && (
-                                        <motion.div
-                                            initial={{ height: 0, opacity: 0 }}
+                                        <m.div
+                                            initial={prefersReducedMotion ? false : { height: 0, opacity: 0 }}
                                             animate={{ height: 'auto', opacity: 1 }}
                                             exit={{ height: 0, opacity: 0 }}
-                                            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                                            transition={prefersReducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 300, damping: 30 }}
                                             className="overflow-hidden"
                                         >
                                             <div className="bg-card rounded-2xl p-4 border border-border/50 shadow-soft space-y-2 mt-2">
@@ -194,7 +199,7 @@ export default function HistoryPage() {
                                                     </div>
                                                 </div>
                                             </div>
-                                        </motion.div>
+                                        </m.div>
                                     )}
                                 </div>
                             );

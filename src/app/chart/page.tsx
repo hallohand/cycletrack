@@ -3,8 +3,24 @@ import { useCycleData } from '@/hooks/useCycleData';
 import { ResponsiveContainer, LineChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, ReferenceLine } from 'recharts';
 import { ChartSkeleton } from '@/components/ui/skeleton';
 import { Blob } from '@/components/ui/blob';
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useMemo, useSyncExternalStore } from 'react';
 import { ThermometerSun } from 'lucide-react';
+
+// Debounced (250ms) window-resize subscription — recharts ResponsiveContainer handles inner resizing itself
+function subscribeToResize(onStoreChange: () => void) {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const handleResize = () => {
+        if (timeout) clearTimeout(timeout);
+        timeout = setTimeout(onStoreChange, 250);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => {
+        if (timeout) clearTimeout(timeout);
+        window.removeEventListener('resize', handleResize);
+    };
+}
+const getWindowWidth = () => window.innerWidth;
+const getServerWindowWidth = () => 375;
 
 interface ChartDataPoint {
     index: number;
@@ -29,13 +45,12 @@ interface PhaseArea {
 
 export default function ChartPage() {
     const { data, isLoaded, engine, cycles: historyCycles } = useCycleData();
-    const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-    const [phaseAreas, setPhaseAreas] = useState<PhaseArea[]>([]);
 
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        if (!isLoaded) return;
+    // Derived chart data (memoized instead of useEffect + setState)
+    const chartData = useMemo<ChartDataPoint[]>(() => {
+        if (!isLoaded) return [];
 
         const entries = Object.values(data.entries).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
@@ -57,7 +72,7 @@ export default function ChartPage() {
         });
 
         // 2. Prepare Chart Data (Linear Index for XAxis)
-        const formattedData = relevantEntries.map((e, index) => {
+        return relevantEntries.map((e, index) => {
             const info = dayInfoMap.get(e.date) || { isPeriod: !!e.period && e.period !== 'spotting', isFertile: false, isOvulation: false };
             return {
                 index, // XAxis Key
@@ -73,53 +88,52 @@ export default function ChartPage() {
                 sex: e.sex
             };
         });
-        setChartData(formattedData);
-
-        // 3. Calculate Phase Blocks
-        const newPhaseAreas: PhaseArea[] = [];
-        if (formattedData.length > 0) {
-            let currentType: 'period' | 'fertile' | 'purple' = 'purple'; // Default
-            let startIndex = 0;
-
-            const getType = (d: ChartDataPoint): 'period' | 'fertile' | 'purple' => {
-                if (d.isPeriod) return 'period';
-                if (d.isFertile) return 'fertile';
-                return 'purple';
-            };
-
-            currentType = getType(formattedData[0]);
-
-            formattedData.forEach((d, i) => {
-                const type = getType(d);
-                // Check for break in continuity (date gap > 1 day) or type change
-                const prev = formattedData[i - 1];
-                const dateGap = prev ? (new Date(d.dateStr).getTime() - new Date(prev.dateStr).getTime()) > 86400000 * 1.5 : false;
-
-                if (type !== currentType || dateGap) {
-                    // Push previous block
-                    newPhaseAreas.push({
-                        x1: startIndex,
-                        x2: i, // Overlap by 1 to eliminate white gaps between transitions
-                        type: currentType,
-                        label: currentType === 'period' ? 'Periode' : currentType === 'fertile' ? 'Fruchtbar' : ''
-                    });
-
-                    // Start new block
-                    currentType = type;
-                    startIndex = i;
-                }
-            });
-            // Push final block
-            newPhaseAreas.push({
-                x1: startIndex,
-                x2: formattedData.length - 1,
-                type: currentType,
-                label: currentType === 'period' ? 'Periode' : currentType === 'fertile' ? 'Fruchtbar' : ''
-            });
-        }
-        setPhaseAreas(newPhaseAreas);
-
     }, [data, isLoaded, historyCycles]);
+
+    // Phase blocks derived from chart data (memoized)
+    const phaseAreas = useMemo<PhaseArea[]>(() => {
+        const newPhaseAreas: PhaseArea[] = [];
+        if (chartData.length === 0) return newPhaseAreas;
+
+        const getType = (d: ChartDataPoint): 'period' | 'fertile' | 'purple' => {
+            if (d.isPeriod) return 'period';
+            if (d.isFertile) return 'fertile';
+            return 'purple';
+        };
+
+        let currentType: 'period' | 'fertile' | 'purple' = getType(chartData[0]);
+        let startIndex = 0;
+
+        chartData.forEach((d, i) => {
+            const type = getType(d);
+            // Check for break in continuity (date gap > 1 day) or type change
+            const prev = chartData[i - 1];
+            const dateGap = prev ? (new Date(d.dateStr).getTime() - new Date(prev.dateStr).getTime()) > 86400000 * 1.5 : false;
+
+            if (type !== currentType || dateGap) {
+                // Push previous block
+                newPhaseAreas.push({
+                    x1: startIndex,
+                    x2: i, // Overlap by 1 to eliminate white gaps between transitions
+                    type: currentType,
+                    label: currentType === 'period' ? 'Periode' : currentType === 'fertile' ? 'Fruchtbar' : ''
+                });
+
+                // Start new block
+                currentType = type;
+                startIndex = i;
+            }
+        });
+        // Push final block
+        newPhaseAreas.push({
+            x1: startIndex,
+            x2: chartData.length - 1,
+            type: currentType,
+            label: currentType === 'period' ? 'Periode' : currentType === 'fertile' ? 'Fruchtbar' : ''
+        });
+
+        return newPhaseAreas;
+    }, [chartData]);
 
     // Filter current cycle data for the overview bar temp curve (must be before any early return)
     const currentCycleTemps = useMemo(() => {
@@ -132,23 +146,17 @@ export default function ChartPage() {
 
     // Auto-scroll to the right (newest data) on load
     useEffect(() => {
-        if (chartData.length > 0 && scrollRef.current) {
-            setTimeout(() => {
-                if (scrollRef.current) {
-                    scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
-                }
-            }, 100);
-        }
+        if (chartData.length === 0 || !scrollRef.current) return;
+        const timeout = setTimeout(() => {
+            if (scrollRef.current) {
+                scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+            }
+        }, 100);
+        return () => clearTimeout(timeout);
     }, [chartData]);
 
-    // SSR-safe window width
-    const [windowWidth, setWindowWidth] = useState(375);
-    useEffect(() => {
-        setWindowWidth(window.innerWidth);
-        const handleResize = () => setWindowWidth(window.innerWidth);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
+    // SSR-safe window width (debounced resize subscription)
+    const windowWidth = useSyncExternalStore(subscribeToResize, getWindowWidth, getServerWindowWidth);
 
     const chartWidth = Math.max(windowWidth, chartData.length * 40);
 
@@ -304,8 +312,8 @@ export default function ChartPage() {
                                     dataKey="temp"
                                     stroke="var(--primary)"
                                     strokeWidth={2.5}
-                                    dot={(props: any) => {
-                                        const { cx, cy, payload } = props;
+                                    dot={(props: { cx?: number; cy?: number; payload?: { sex?: string; lh?: string; isOvulation?: boolean } }) => {
+                                        const { cx, cy, payload = {} } = props;
                                         if (payload.sex) return <circle cx={cx} cy={cy} r={3} fill="var(--phase-period)" stroke="var(--phase-period-light)" strokeWidth={1.5} />;
                                         if (payload.lh === 'peak' || payload.lh === 'positive') return <circle cx={cx} cy={cy} r={3} fill="var(--phase-luteal)" stroke="white" strokeWidth={1.5} />;
                                         if (payload.isOvulation) return <circle cx={cx} cy={cy} r={4} fill="var(--phase-ovulation)" stroke="white" strokeWidth={1.5} />;

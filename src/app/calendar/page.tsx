@@ -4,13 +4,12 @@
 import { useCycleData } from '@/hooks/useCycleData';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
-import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import { de } from 'date-fns/locale';
 import { addMonths, subMonths } from 'date-fns';
-import { Info, Heart, Thermometer, Droplet, Activity, Plus, Pencil, Zap, LucideIcon } from 'lucide-react';
-import { cn, toLocalISO } from '@/lib/utils';
+import { Info, Heart, Thermometer, Droplet, Plus, Pencil, Zap, LucideIcon } from 'lucide-react';
+import { toLocalISO } from '@/lib/utils';
 import { EntryDrawer } from '@/components/entry/EntryDrawer';
-import { CycleEntry } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface DetailItemProps {
@@ -118,7 +117,7 @@ export default function CalendarPage() {
 
             const fStart = parse(cycle.fertileStart);
             const fEnd = parse(cycle.fertileEnd);
-            let cur = new Date(fStart);
+            const cur = new Date(fStart);
             while (cur <= fEnd) {
                 m.predicted_fertile.push(new Date(cur));
                 cur.setDate(cur.getDate() + 1);
@@ -158,7 +157,7 @@ export default function CalendarPage() {
                 const fEnd = new Date(oDate);
                 fEnd.setDate(fEnd.getDate() + 1);
 
-                let cur = new Date(fStart);
+                const cur = new Date(fStart);
                 while (cur <= fEnd) {
                     m.predicted_fertile.push(new Date(cur));
                     cur.setDate(cur.getDate() + 1);
@@ -314,7 +313,7 @@ export default function CalendarPage() {
 
                         {selectedEntry.notes && (
                             <div className="bg-[var(--phase-ovulation-light)] p-3 rounded-2xl border border-[var(--phase-ovulation)]/20 text-sm text-foreground italic shadow-soft">
-                                "{selectedEntry.notes}"
+                                &bdquo;{selectedEntry.notes}&ldquo;
                             </div>
                         )}
                     </div>

@@ -5,16 +5,14 @@ import { useState, useEffect } from 'react';
 import { useCycleData } from '@/components/CycleContext';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
 import { de } from 'date-fns/locale';
-import { ArrowRight, Check, Droplet, CalendarDays, Clock, PartyPopper, Hand } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { cn, toLocalISO } from '@/lib/utils';
+import { ArrowRight, Check, Droplet, CalendarDays, Clock, Hand } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { toLocalISO } from '@/lib/utils';
 
 export function OnboardingWizard() {
-    const { data, isLoaded, updateSettings, updateEntry, setAllEntries } = useCycleData();
-    const [open, setOpen] = useState(false);
+    const { data, isLoaded, updateSettings, updateEntry } = useCycleData();
     const [step, setStep] = useState(1);
 
     // Form State
@@ -22,25 +20,17 @@ export function OnboardingWizard() {
     const [periodLength, setPeriodLength] = useState(5);
     const [lastPeriodDate, setLastPeriodDate] = useState<Date | undefined>(undefined);
 
-    useEffect(() => {
-        if (isLoaded && data.onboardingCompleted === false) {
-            // Check if we really have no data or just the flag is missing/false
-            // If user has entries but flag is false (migration case), we might want to skip or just autoset
-            // For now, strict check: if flag is explicitly false, show wizard.
-            // But to be safe for existing users (who might have undefined flag), we treat undefined as true (completed) OR check entry count.
-            // Actually, in `DEFAULT_CYCLE_DATA`, I set it to `false`. Current users might have `undefined`.
-            // Let's assume if `onboardingCompleted` is explicitly `false` AND entries are empty, show it.
-            // If entries exist, we should probably set it to true silently.
+    const hasEntries = Object.keys(data.entries).length > 0;
+    // Sichtbarkeit wird direkt aus den Daten abgeleitet (kein open-State):
+    // Wizard nur für wirklich neue Nutzerinnen ohne Einträge.
+    const open = isLoaded && data.onboardingCompleted === false && !hasEntries;
 
-            const hasEntries = Object.keys(data.entries).length > 0;
-            if (hasEntries) {
-                // Migration: User has data but no flag -> set flag and don't show wizard
-                updateSettings({ onboardingCompleted: true });
-            } else {
-                setOpen(true);
-            }
+    useEffect(() => {
+        // Migration: Bestandsdaten ohne Flag -> Flag setzen, Wizard überspringen.
+        if (isLoaded && data.onboardingCompleted === false && hasEntries) {
+            updateSettings({ onboardingCompleted: true });
         }
-    }, [isLoaded, data.onboardingCompleted, data.entries, updateSettings]);
+    }, [isLoaded, data.onboardingCompleted, hasEntries, updateSettings]);
 
     const handleNext = () => {
         setStep(prev => prev + 1);
@@ -76,8 +66,7 @@ export function OnboardingWizard() {
                 });
             }
         }
-
-        setOpen(false);
+        // Kein setOpen nötig: onboardingCompleted=true schließt den Dialog abgeleitet.
     };
 
     if (!open) return null;
@@ -99,7 +88,7 @@ export function OnboardingWizard() {
                             <p className="text-sm text-muted-foreground">Das dauert nur 30 Sekunden.</p>
                         </div>
                         <Button className="w-full bg-primary hover:bg-primary/90 text-white" onClick={handleNext}>
-                            Los geht's <ArrowRight className="w-4 h-4 ml-2" />
+                            Los geht&apos;s <ArrowRight className="w-4 h-4 ml-2" />
                         </Button>
                     </div>
                 )}
@@ -125,6 +114,7 @@ export function OnboardingWizard() {
                                 min={21}
                                 max={45}
                                 step={1}
+                                aria-label="Durchschnittliche Zykluslänge in Tagen"
                                 className="w-full"
                             />
                             <p className="text-xs text-muted-foreground text-center">
@@ -157,6 +147,7 @@ export function OnboardingWizard() {
                                 min={2}
                                 max={10}
                                 step={1}
+                                aria-label="Periodendauer in Tagen"
                                 className="w-full"
                             />
                         </div>
